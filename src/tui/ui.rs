@@ -160,7 +160,7 @@ fn render_modal(frame: &mut Frame, app: &mut App) {
 
 
     // Render tag suggestions list
-    let tag_items: Vec<ListItem> = app.all_tags.iter().map(|t| ListItem::new(t.clone())).collect();
+    let tag_items: Vec<ListItem> = app.filtered_tags.iter().map(|t| ListItem::new(t.clone())).collect();
 
     let tags_list = List::new(tag_items)
         .block(Block::default().borders(Borders::ALL).title("Existing Tags"))

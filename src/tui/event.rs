@@ -15,11 +15,19 @@ pub fn handle_events(app: &mut App) -> std::io::Result<bool> {
                     KeyCode::Char('i') => app.sort_by_install_date(),
                     KeyCode::Char('a') => {
                         app.input_mode = InputMode::Tagging;
+                        app.update_filtered_tags();
                         app.tag_selection.select(Some(0));
+                        if let Some(tag) = app.filtered_tags.get(0) {
+                            app.input = tag.clone();
+                        }
                     }
                     KeyCode::Char('u') => {
                         app.input_mode = InputMode::Untagging;
+                        app.update_filtered_tags();
                         app.tag_selection.select(Some(0));
+                        if let Some(tag) = app.filtered_tags.get(0) {
+                            app.input = tag.clone();
+                        }
                     }
                     _ => {}
                 },
@@ -31,14 +39,7 @@ pub fn handle_events(app: &mut App) -> std::io::Result<bool> {
                             if let Some(pkg) = app.packages.get_mut(selected) {
                                 let package_name = pkg.name.clone();
 
-                                // If a tag is selected in the list, use it. Otherwise, use the input field.
-                                let tag_to_apply = if !app.input.is_empty() {
-                                    app.input.clone()
-                                } else if let Some(selected_tag_index) = app.tag_selection.selected() {
-                                    app.all_tags.get(selected_tag_index).cloned().unwrap_or_default()
-                                } else {
-                                    String::new()
-                                };
+                                let tag_to_apply = app.input.trim().to_string();
 
 
                                 if !tag_to_apply.is_empty() {
@@ -70,17 +71,21 @@ pub fn handle_events(app: &mut App) -> std::io::Result<bool> {
                             }
                         }
                         app.input.clear();
+                        app.update_filtered_tags();
                         app.input_mode = InputMode::Normal;
                         app.tag_selection.select(None); // Deselect tag
                     }
                     KeyCode::Char(c) => {
                         app.input.push(c);
+                        app.update_filtered_tags();
                     }
                     KeyCode::Backspace => {
                         app.input.pop();
+                        app.update_filtered_tags();
                     }
                     KeyCode::Esc => {
                         app.input.clear();
+                        app.update_filtered_tags();
                         app.input_mode = InputMode::Normal;
                         app.tag_selection.select(None); // Deselect tag
                     }
