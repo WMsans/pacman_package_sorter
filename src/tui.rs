@@ -89,7 +89,7 @@ impl App {
         let main_layout = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([Constraint::Percentage(30), Constraint::Percentage(70)].as_ref())
-            .split(frame.size());
+            .split(frame.area());
 
         let left_layout = Layout::default()
             .direction(Direction::Vertical)
