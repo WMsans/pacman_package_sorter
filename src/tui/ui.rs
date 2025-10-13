@@ -125,7 +125,6 @@ fn render_actions(frame: &mut Frame, area: Rect, app: &App) {
     frame.render_widget(paragraph, area);
 }
 
-// New function
 fn render_output_window(frame: &mut Frame, area: Rect, app: &App) {
     let block = Block::default().title("Output").borders(Borders::ALL);
     let text = app.output.join("\n");
@@ -133,25 +132,42 @@ fn render_output_window(frame: &mut Frame, area: Rect, app: &App) {
     frame.render_widget(paragraph, area);
 }
 
-// New function
-fn render_modal(frame: &mut Frame, app: &App) {
-    let area = centered_rect(60, 20, frame.area());
+fn render_modal(frame: &mut Frame, app: &mut App) {
+    let area = centered_rect(60, 50, frame.area());
     let title = if let InputMode::Tagging = app.input_mode { "Add Tag" } else { "Remove Tag" };
     let block = Block::default().title(title).borders(Borders::ALL);
-    let input = Paragraph::new(app.input.as_str())
-        .style(Style::default().fg(Color::Yellow))
-        .block(Block::default().borders(Borders::ALL).title("Input"));
 
     frame.render_widget(Clear, area); //this clears the background
     frame.render_widget(block, area);
 
-    // We need to calculate the inner area for the input paragraph
-    let inner_area = Layout::default()
+    let modal_layout = Layout::default()
+        .direction(Direction::Vertical)
         .margin(1)
-        .constraints([Constraint::Percentage(100)])
-        .split(area)[0];
+        .constraints(
+            [
+                Constraint::Length(3), // Input box
+                Constraint::Min(0),    // Tag list
+            ]
+            .as_ref(),
+        )
+        .split(area);
 
-    frame.render_widget(input, inner_area);
+    // Render input box
+    let input = Paragraph::new(app.input.as_str())
+        .style(Style::default().fg(Color::Yellow))
+        .block(Block::default().borders(Borders::ALL).title("Input"));
+    frame.render_widget(input, modal_layout[0]);
+
+
+    // Render tag suggestions list
+    let tag_items: Vec<ListItem> = app.all_tags.iter().map(|t| ListItem::new(t.clone())).collect();
+
+    let tags_list = List::new(tag_items)
+        .block(Block::default().borders(Borders::ALL).title("Existing Tags"))
+        .highlight_style(Style::default().add_modifier(Modifier::BOLD).bg(Color::DarkGray))
+        .highlight_symbol("> ");
+
+    frame.render_stateful_widget(tags_list, modal_layout[1], &mut app.tag_selection);
 }
 
 /// helper function to create a centered rect using up certain percentage of the screen

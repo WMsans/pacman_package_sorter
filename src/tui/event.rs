@@ -15,45 +15,63 @@ pub fn handle_events(app: &mut App) -> std::io::Result<bool> {
                     KeyCode::Char('i') => app.sort_by_install_date(),
                     KeyCode::Char('a') => {
                         app.input_mode = InputMode::Tagging;
+                        app.tag_selection.select(Some(0));
                     }
                     KeyCode::Char('u') => {
                         app.input_mode = InputMode::Untagging;
+                        app.tag_selection.select(Some(0));
                     }
                     _ => {}
                 },
                 InputMode::Tagging | InputMode::Untagging => match key.code {
+                    KeyCode::Up => app.select_previous_tag(),
+                    KeyCode::Down => app.select_next_tag(),
                     KeyCode::Enter => {
                         if let Some(selected) = app.selected_package.selected() {
                             if let Some(pkg) = app.packages.get_mut(selected) {
                                 let package_name = pkg.name.clone();
-                                let tag = app.input.clone();
-                                let result = if matches!(app.input_mode, InputMode::Tagging) {
-                                    db::add_tag(&package_name, &tag)
+
+                                // If a tag is selected in the list, use it. Otherwise, use the input field.
+                                let tag_to_apply = if !app.input.is_empty() {
+                                    app.input.clone()
+                                } else if let Some(selected_tag_index) = app.tag_selection.selected() {
+                                    app.all_tags.get(selected_tag_index).cloned().unwrap_or_default()
                                 } else {
-                                    db::remove_tag(&package_name, &tag)
+                                    String::new()
                                 };
 
-                                match result {
-                                    Ok(msg) => {
-                                        app.output.push(msg);
-                                        // Update the package's tags in the app state
-                                        if matches!(app.input_mode, InputMode::Tagging) {
-                                            if !pkg.tags.contains(&tag) {
-                                                pkg.tags.push(tag);
-                                                pkg.tags.sort();
+
+                                if !tag_to_apply.is_empty() {
+                                    let result = if matches!(app.input_mode, InputMode::Tagging) {
+                                        db::add_tag(&package_name, &tag_to_apply)
+                                    } else {
+                                        db::remove_tag(&package_name, &tag_to_apply)
+                                    };
+
+                                    match result {
+                                        Ok(msg) => {
+                                            app.output.push(msg);
+                                            // Update the package's tags in the app state
+                                            if matches!(app.input_mode, InputMode::Tagging) {
+                                                if !pkg.tags.contains(&tag_to_apply) {
+                                                    pkg.tags.push(tag_to_apply);
+                                                    pkg.tags.sort();
+                                                }
+                                            } else {
+                                                pkg.tags.retain(|t| t != &tag_to_apply);
                                             }
-                                        } else {
-                                            pkg.tags.retain(|t| t != &tag);
+                                            app.reload_tags(); // Reload tags after modification
                                         }
-                                    }
-                                    Err(e) => {
-                                        app.output.push(format!("Error: {}", e));
+                                        Err(e) => {
+                                            app.output.push(format!("Error: {}", e));
+                                        }
                                     }
                                 }
                             }
                         }
                         app.input.clear();
                         app.input_mode = InputMode::Normal;
+                        app.tag_selection.select(None); // Deselect tag
                     }
                     KeyCode::Char(c) => {
                         app.input.push(c);
@@ -64,6 +82,7 @@ pub fn handle_events(app: &mut App) -> std::io::Result<bool> {
                     KeyCode::Esc => {
                         app.input.clear();
                         app.input_mode = InputMode::Normal;
+                        app.tag_selection.select(None); // Deselect tag
                     }
                     _ => {}
                 },

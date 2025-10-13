@@ -1,12 +1,10 @@
-use crate::{backend, models::Package, models::SortKey};
+use crate::{backend, db, models::Package, models::SortKey};
 use ratatui::prelude::*;
 use ratatui::widgets::ListState;
 use ratatui::Terminal;
 use std::io::Stdout;
 
-// Import the specific function `handle_events` from our event module
 use crate::tui::event::handle_events;
-// Import our `ui` module
 use crate::tui::ui;
 
 pub enum InputMode {
@@ -26,6 +24,8 @@ pub struct App {
     pub show_explicit: bool,
     pub show_dependency: bool,
     pub output: Vec<String>,
+    pub all_tags: Vec<String>,
+    pub tag_selection: ListState,
 }
 
 impl App {
@@ -41,6 +41,8 @@ impl App {
             show_explicit: false,
             show_dependency: false,
             output: Vec::new(),
+            all_tags: db::get_all_tags().unwrap_or_default(),
+            tag_selection: ListState::default(),
         }
     }
 
@@ -106,5 +108,37 @@ impl App {
             None => 0,
         };
         self.selected_package.select(Some(i));
+    }
+
+    pub fn select_previous_tag(&mut self) {
+        let i = match self.tag_selection.selected() {
+            Some(i) => {
+                if i == 0 {
+                    self.all_tags.len() - 1
+                } else {
+                    i - 1
+                }
+            }
+            None => 0,
+        };
+        self.tag_selection.select(Some(i));
+    }
+
+    pub fn select_next_tag(&mut self) {
+        let i = match self.tag_selection.selected() {
+            Some(i) => {
+                if i >= self.all_tags.len() - 1 {
+                    0
+                } else {
+                    i + 1
+                }
+            }
+            None => 0,
+        };
+        self.tag_selection.select(Some(i));
+    }
+
+    pub fn reload_tags(&mut self) {
+        self.all_tags = db::get_all_tags().unwrap_or_default();
     }
 }

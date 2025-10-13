@@ -1,7 +1,7 @@
 use crate::error::AppError;
 use serde_json;
 use std::{
-    collections::HashMap,
+    collections::{BTreeSet, HashMap},
     fs,
     path::PathBuf,
 };
@@ -73,4 +73,11 @@ pub fn remove_tag(package_name: &str, tag: &str) -> Result<String, AppError> {
     } else {
         Err(AppError::InvalidInput(format!("Tag '{}' not found for package '{}'.", tag, package_name)))
     }
+}
+
+// Get all unique tags
+pub fn get_all_tags() -> Result<Vec<String>, AppError> {
+    let db = load_tags()?;
+    let all_tags: BTreeSet<String> = db.into_values().flatten().collect();
+    Ok(all_tags.into_iter().collect())
 }
