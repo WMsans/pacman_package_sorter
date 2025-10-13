@@ -1,5 +1,5 @@
 [package]
-name = "pacman_plus"
+name = "pacman_package_sorter"
 version = "0.1.0"
 edition = "2024"
 
