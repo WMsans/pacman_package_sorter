@@ -11,7 +11,8 @@ use crate::tui::ui;
 
 pub enum InputMode {
     Normal,
-    Editing,
+    Tagging,
+    Untagging,
 }
 
 pub struct App {
@@ -24,6 +25,7 @@ pub struct App {
     pub input_mode: InputMode,
     pub show_explicit: bool,
     pub show_dependency: bool,
+    pub output: Vec<String>,
 }
 
 impl App {
@@ -38,6 +40,7 @@ impl App {
             input_mode: InputMode::Normal,
             show_explicit: false,
             show_dependency: false,
+            output: Vec::new(),
         }
     }
 

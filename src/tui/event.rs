@@ -14,28 +14,46 @@ pub fn handle_events(app: &mut App) -> std::io::Result<bool> {
                     KeyCode::Char('n') => app.sort_by_name(),
                     KeyCode::Char('i') => app.sort_by_install_date(),
                     KeyCode::Char('a') => {
-                        app.input_mode = InputMode::Editing;
+                        app.input_mode = InputMode::Tagging;
                     }
                     KeyCode::Char('u') => {
-                        if let Some(selected) = app.selected_package.selected() {
-                            if let Some(pkg) = app.packages.get(selected) {
-                                if let Some(tag) = pkg.tags.first() {
-                                    db::remove_tag(&pkg.name, tag).unwrap();
-                                }
-                            }
-                        }
+                        app.input_mode = InputMode::Untagging;
                     }
                     _ => {}
                 },
-                InputMode::Editing => match key.code {
+                InputMode::Tagging | InputMode::Untagging => match key.code {
                     KeyCode::Enter => {
                         if let Some(selected) = app.selected_package.selected() {
-                            if let Some(pkg) = app.packages.get(selected) {
-                                db::add_tag(&pkg.name, &app.input).unwrap();
-                                app.input.clear();
-                                app.input_mode = InputMode::Normal;
+                            if let Some(pkg) = app.packages.get_mut(selected) {
+                                let package_name = pkg.name.clone();
+                                let tag = app.input.clone();
+                                let result = if matches!(app.input_mode, InputMode::Tagging) {
+                                    db::add_tag(&package_name, &tag)
+                                } else {
+                                    db::remove_tag(&package_name, &tag)
+                                };
+
+                                match result {
+                                    Ok(msg) => {
+                                        app.output.push(msg);
+                                        // Update the package's tags in the app state
+                                        if matches!(app.input_mode, InputMode::Tagging) {
+                                            if !pkg.tags.contains(&tag) {
+                                                pkg.tags.push(tag);
+                                                pkg.tags.sort();
+                                            }
+                                        } else {
+                                            pkg.tags.retain(|t| t != &tag);
+                                        }
+                                    }
+                                    Err(e) => {
+                                        app.output.push(format!("Error: {}", e));
+                                    }
+                                }
                             }
                         }
+                        app.input.clear();
+                        app.input_mode = InputMode::Normal;
                     }
                     KeyCode::Char(c) => {
                         app.input.push(c);
@@ -44,6 +62,7 @@ pub fn handle_events(app: &mut App) -> std::io::Result<bool> {
                         app.input.pop();
                     }
                     KeyCode::Esc => {
+                        app.input.clear();
                         app.input_mode = InputMode::Normal;
                     }
                     _ => {}

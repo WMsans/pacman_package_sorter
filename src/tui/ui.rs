@@ -1,8 +1,8 @@
 use crate::tui::app::{App, InputMode};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
-    style::{Modifier, Style},
-    widgets::{Block, Borders, List, ListItem, Paragraph},
+    style::{Color, Modifier, Style},
+    widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
     Frame,
 };
 
@@ -32,8 +32,9 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         .direction(Direction::Vertical)
         .constraints(
             [
-                Constraint::Percentage(80), // Package info
-                Constraint::Percentage(20), // Actions
+                Constraint::Percentage(70), // Package info
+                Constraint::Percentage(15), // Actions
+                Constraint::Percentage(15), // Output
             ]
             .as_ref(),
         )
@@ -41,6 +42,12 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
 
     render_package_info(frame, right_layout[0], app);
     render_actions(frame, right_layout[1], app);
+    render_output_window(frame, right_layout[2], app);
+
+    // Render modal last to appear on top
+    if let InputMode::Tagging | InputMode::Untagging = app.input_mode {
+        render_modal(frame, app);
+    }
 }
 
 fn render_package_list(frame: &mut Frame, area: Rect, app: &mut App) {
@@ -111,8 +118,65 @@ fn render_actions(frame: &mut Frame, area: Rect, app: &App) {
     let block = Block::default().title("Actions").borders(Borders::ALL);
     let text = match app.input_mode {
         InputMode::Normal => "Actions:\n- Add (A) tag\n- (U)ntag",
-        InputMode::Editing => "Enter tag name, then press Enter",
+        InputMode::Tagging => "Enter tag to add, then press Enter",
+        InputMode::Untagging => "Enter tag to remove, then press Enter",
     };
     let paragraph = Paragraph::new(text).block(block);
     frame.render_widget(paragraph, area);
+}
+
+// New function
+fn render_output_window(frame: &mut Frame, area: Rect, app: &App) {
+    let block = Block::default().title("Output").borders(Borders::ALL);
+    let text = app.output.join("\n");
+    let paragraph = Paragraph::new(text).block(block);
+    frame.render_widget(paragraph, area);
+}
+
+// New function
+fn render_modal(frame: &mut Frame, app: &App) {
+    let area = centered_rect(60, 20, frame.area());
+    let title = if let InputMode::Tagging = app.input_mode { "Add Tag" } else { "Remove Tag" };
+    let block = Block::default().title(title).borders(Borders::ALL);
+    let input = Paragraph::new(app.input.as_str())
+        .style(Style::default().fg(Color::Yellow))
+        .block(Block::default().borders(Borders::ALL).title("Input"));
+
+    frame.render_widget(Clear, area); //this clears the background
+    frame.render_widget(block, area);
+
+    // We need to calculate the inner area for the input paragraph
+    let inner_area = Layout::default()
+        .margin(1)
+        .constraints([Constraint::Percentage(100)])
+        .split(area)[0];
+
+    frame.render_widget(input, inner_area);
+}
+
+/// helper function to create a centered rect using up certain percentage of the screen
+fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(
+            [
+                Constraint::Percentage((100 - percent_y) / 2),
+                Constraint::Percentage(percent_y),
+                Constraint::Percentage((100 - percent_y) / 2),
+            ]
+            .as_ref(),
+        )
+        .split(r);
+
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints(
+            [
+                Constraint::Percentage((100 - percent_x) / 2),
+                Constraint::Percentage(percent_x),
+                Constraint::Percentage((100 - percent_x) / 2),
+            ]
+            .as_ref(),
+        )
+        .split(popup_layout[1])[1]
 }

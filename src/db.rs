@@ -13,7 +13,7 @@ type TagDb = HashMap<String, Vec<String>>;
 fn get_db_path() -> Result<PathBuf, AppError> {
     let config_dir = dirs::config_dir()
         .ok_or_else(|| AppError::Io(std::io::Error::new(std::io::ErrorKind::NotFound, "Config directory not found")))?
-        .join("pacman_plus");
+        .join("pacman_package_sorter");
     
     fs::create_dir_all(&config_dir)?;
     Ok(config_dir.join("tags.json"))
@@ -39,7 +39,7 @@ fn save_tags(db: &TagDb) -> Result<(), AppError> {
 }
 
 // Adds a tag to a package
-pub fn add_tag(package_name: &str, tag: &str) -> Result<(), AppError> {
+pub fn add_tag(package_name: &str, tag: &str) -> Result<String, AppError> {
     let mut db = load_tags()?;
     let tags = db.entry(package_name.to_string()).or_insert_with(Vec::new);
     if !tags.contains(&tag.to_string()) {
@@ -47,22 +47,30 @@ pub fn add_tag(package_name: &str, tag: &str) -> Result<(), AppError> {
         tags.sort(); // Keep tags sorted
     }
     save_tags(&db)?;
-    println!("Added tag '{}' to '{}'", tag, package_name);
-    Ok(())
+    Ok(format!("Added tag '{}' to '{}'", tag, package_name))
 }
 
 // Removes a tag from a package
-pub fn remove_tag(package_name: &str, tag: &str) -> Result<(), AppError> {
+pub fn remove_tag(package_name: &str, tag: &str) -> Result<String, AppError> {
     let mut db = load_tags()?;
+    let mut changed = false;
+    let mut is_empty = false;
+
     if let Some(tags) = db.get_mut(package_name) {
+        let original_len = tags.len();
         tags.retain(|t| t != tag);
-        if tags.is_empty() {
-            db.remove(package_name);
-        }
-        save_tags(&db)?;
-        println!("Removed tag '{}' from '{}'", tag, package_name);
-    } else {
-        println!("Package '{}' not found in tag database.", package_name);
+        changed = tags.len() < original_len;
+        is_empty = tags.is_empty();
     }
-    Ok(())
+
+    if is_empty {
+        db.remove(package_name);
+    }
+
+    if changed {
+        save_tags(&db)?;
+        Ok(format!("Removed tag '{}' from '{}'", tag, package_name))
+    } else {
+        Err(AppError::InvalidInput(format!("Tag '{}' not found for package '{}'.", tag, package_name)))
+    }
 }

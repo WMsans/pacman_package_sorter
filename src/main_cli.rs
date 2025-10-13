@@ -70,10 +70,12 @@ async fn main() -> Result<()> {
             print_packages_table(sorted_packages);
         }
         Commands::Tag { package, tag } => {
-            db::add_tag(package, tag)?;
+            let msg = db::add_tag(package, tag)?;
+            println!("{}", msg);
         }
         Commands::Untag { package, tag } => {
-            db::remove_tag(package, tag)?;
+            let msg = db::remove_tag(package, tag)?;
+            println!("{}", msg);
         }
     }
 
