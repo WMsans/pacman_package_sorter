@@ -87,6 +87,11 @@ impl App {
         backend::sort_packages(&mut self.packages, self.sort_key);
     }
 
+    pub fn sort_by_update_date(&mut self) {
+        self.sort_key = SortKey::UpdateDate;
+        backend::sort_packages(&mut self.packages, self.sort_key);
+    }
+
     pub fn select_previous(&mut self) {
         let i = match self.selected_package.selected() {
             Some(i) => {

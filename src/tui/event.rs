@@ -13,6 +13,7 @@ pub fn handle_events(app: &mut App) -> std::io::Result<bool> {
                     KeyCode::Char('s') => app.sort_by_size(),
                     KeyCode::Char('n') => app.sort_by_name(),
                     KeyCode::Char('i') => app.sort_by_install_date(),
+                    KeyCode::Char('u') => app.sort_by_update_date(),
                     KeyCode::Char('a') => {
                         app.input_mode = InputMode::Tagging;
                         app.update_filtered_tags();
@@ -21,7 +22,7 @@ pub fn handle_events(app: &mut App) -> std::io::Result<bool> {
                             app.input = tag.clone();
                         }
                     }
-                    KeyCode::Char('u') => {
+                    KeyCode::Char('d') => {
                         app.input_mode = InputMode::Untagging;
                         app.update_filtered_tags();
                         app.tag_selection.select(Some(0));

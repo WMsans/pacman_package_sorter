@@ -107,7 +107,7 @@ fn render_filters(frame: &mut Frame, area: Rect, app: &App) {
 fn render_sorting(frame: &mut Frame, area: Rect, app: &App) {
     let block = Block::default().title("Sort").borders(Borders::ALL);
     let text = format!(
-        "Sort by:\n- (N)ame\n- (S)ize\n- (I)nstalled Date\n\nCurrent: {:?}",
+        "Sort by:\n- (N)ame\n- (S)ize\n- (I)nstalled Date\n- (U)pdate Date\n\nCurrent: {:?}",
         app.sort_key
     );
     let paragraph = Paragraph::new(text).block(block);
@@ -117,7 +117,7 @@ fn render_sorting(frame: &mut Frame, area: Rect, app: &App) {
 fn render_actions(frame: &mut Frame, area: Rect, app: &App) {
     let block = Block::default().title("Actions").borders(Borders::ALL);
     let text = match app.input_mode {
-        InputMode::Normal => "Actions:\n- Add (A) tag\n- (U)ntag",
+        InputMode::Normal => "Actions:\n- Add (A) tag\n- (D)elete tag",
         InputMode::Tagging => "Enter tag to add, then press Enter",
         InputMode::Untagging => "Enter tag to remove, then press Enter",
     };
