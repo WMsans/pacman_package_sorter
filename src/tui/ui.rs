@@ -57,7 +57,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
 
 fn render_package_list(frame: &mut Frame, area: Rect, app: &mut App) {
     let items: Vec<ListItem> = app
-        .packages
+        .filtered_packages
         .iter()
         .map(|p| ListItem::new(p.name.clone()))
         .collect();
@@ -76,7 +76,7 @@ fn render_package_info(frame: &mut Frame, area: Rect, app: &App) {
         .borders(Borders::ALL);
 
     let info_text = if let Some(selected) = app.selected_package.selected() {
-        if let Some(package) = app.packages.get(selected) {
+        if let Some(package) = app.filtered_packages.get(selected) {
             format!(
                 "Name: {}\nVersion: {}\nRepository: {:?}\nDescription: {}\nInstalled: {}\nSize: {:.2} MiB\nTags: {}",
                 package.name,
@@ -101,9 +101,11 @@ fn render_package_info(frame: &mut Frame, area: Rect, app: &App) {
 fn render_filters(frame: &mut Frame, area: Rect, app: &App) {
     let block = Block::default().title("Filter (f)").borders(Borders::ALL);
     let text = format!(
-        "Tag: {}\nRepo: {}",
-        app.filter_tag.as_deref().unwrap_or("None"),
-        app.filter_repo.as_deref().unwrap_or("None")
+        "Include Tags: {}\nExclude Tags: {}\nInclude Repos: {}\nExclude Repos: {}",
+        app.include_tags.join(", "),
+        app.exclude_tags.join(", "),
+        app.include_repos.join(", "),
+        app.exclude_repos.join(", "),
     );
     let paragraph = Paragraph::new(text).block(block);
     frame.render_widget(paragraph, area);
@@ -194,13 +196,35 @@ fn render_sort_modal(frame: &mut Frame, app: &mut App) {
 fn render_filter_modal(frame: &mut Frame, app: &mut App) {
     let area = centered_rect(60, 50, frame.area());
     let block = Block::default().title("Filter by").borders(Borders::ALL);
+    let instructions = "Prefix with `+` to include, `-` to exclude. Suffix with `:tag` or `:repo`. E.g. `+mytag:tag -extra:repo`";
 
     frame.render_widget(Clear, area);
     frame.render_widget(block, area);
 
-    let text = "Filtering options will be here.";
-    let paragraph = Paragraph::new(text);
-    frame.render_widget(paragraph, area.inner(Margin { horizontal: 1, vertical: 1 }));
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .margin(1)
+        .constraints(
+            [
+                Constraint::Length(1),
+                Constraint::Length(3),
+                Constraint::Min(0),
+            ]
+            .as_ref(),
+        )
+        .split(area);
+
+    let instructions_p = Paragraph::new(instructions);
+    frame.render_widget(instructions_p, chunks[0]);
+
+    let input = Paragraph::new(app.filter_input.as_str())
+        .style(Style::default().fg(Color::Yellow))
+        .block(Block::default().borders(Borders::ALL).title("Input"));
+    frame.render_widget(input, chunks[1]);
+    frame.set_cursor(
+        chunks[1].x + app.filter_cursor_position as u16 + 1,
+        chunks[1].y + 1,
+    );
 }
 
 fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {

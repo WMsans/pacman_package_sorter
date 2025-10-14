@@ -39,28 +39,31 @@ pub fn handle_events(app: &mut App) -> std::io::Result<bool> {
                     KeyCode::Up | KeyCode::Char('k') => app.select_previous_tag(),
                     KeyCode::Down | KeyCode::Char('j') => app.select_next_tag(),
                     KeyCode::Enter => {
-                        if let Some(selected) = app.selected_package.selected() {
-                            if let Some(pkg) = app.packages.get_mut(selected) {
-                                let package_name = pkg.name.clone();
+                        if let Some(selected_index) = app.selected_package.selected() {
+                            if let Some(selected_pkg_name) = app.filtered_packages.get(selected_index).map(|p| p.name.clone()) {
                                 let tag_to_apply = app.input.trim().to_string();
                                 if !tag_to_apply.is_empty() {
                                     let result = if matches!(app.input_mode, InputMode::Tagging) {
-                                        db::add_tag(&package_name, &tag_to_apply)
+                                        db::add_tag(&selected_pkg_name, &tag_to_apply)
                                     } else {
-                                        db::remove_tag(&package_name, &tag_to_apply)
+                                        db::remove_tag(&selected_pkg_name, &tag_to_apply)
                                     };
                                     match result {
                                         Ok(msg) => {
                                             app.output.push(msg);
-                                            if matches!(app.input_mode, InputMode::Tagging) {
-                                                if !pkg.tags.contains(&tag_to_apply) {
-                                                    pkg.tags.push(tag_to_apply);
-                                                    pkg.tags.sort();
+                                            // Find the package in the main list and update its tags
+                                            if let Some(pkg_to_update) = app.packages.iter_mut().find(|p| p.name == selected_pkg_name) {
+                                                if matches!(app.input_mode, InputMode::Tagging) {
+                                                    if !pkg_to_update.tags.contains(&tag_to_apply) {
+                                                        pkg_to_update.tags.push(tag_to_apply);
+                                                        pkg_to_update.tags.sort();
+                                                    }
+                                                } else {
+                                                    pkg_to_update.tags.retain(|t| t != &tag_to_apply);
                                                 }
-                                            } else {
-                                                pkg.tags.retain(|t| t != &tag_to_apply);
                                             }
                                             app.reload_tags();
+                                            app.apply_filters(); // Re-apply filters to update the view
                                         }
                                         Err(e) => {
                                             app.output.push(format!("Error: {}", e));
@@ -109,6 +112,49 @@ pub fn handle_events(app: &mut App) -> std::io::Result<bool> {
                 },
                 InputMode::Filtering => {
                     match key.code {
+                        KeyCode::Char(c) => {
+                            app.filter_input.insert(app.filter_cursor_position, c);
+                            app.filter_cursor_position += 1;
+                        }
+                        KeyCode::Backspace => {
+                            if app.filter_cursor_position > 0 {
+                                app.filter_cursor_position -= 1;
+                                app.filter_input.remove(app.filter_cursor_position);
+                            }
+                        }
+                        KeyCode::Left => {
+                            if app.filter_cursor_position > 0 {
+                                app.filter_cursor_position -= 1;
+                            }
+                        }
+                        KeyCode::Right => {
+                            if app.filter_cursor_position < app.filter_input.len() {
+                                app.filter_cursor_position += 1;
+                            }
+                        }
+                        KeyCode::Enter => {
+                            let parts = app.filter_input.split_whitespace();
+                            app.include_tags.clear();
+                            app.exclude_tags.clear();
+                            app.include_repos.clear();
+                            app.exclude_repos.clear();
+                            for part in parts {
+                                if part.len() > 1 {
+                                    let (op, filter) = part.split_at(1);
+                                    if let Some((value, type_)) = filter.rsplit_once(':') {
+                                        match (op, type_) {
+                                            ("+", "tag") => app.include_tags.push(value.to_string()),
+                                            ("-", "tag") => app.exclude_tags.push(value.to_string()),
+                                            ("+", "repo") => app.include_repos.push(value.to_string()),
+                                            ("-", "repo") => app.exclude_repos.push(value.to_string()),
+                                            _ => {}
+                                        }
+                                    }
+                                }
+                            }
+                            app.apply_filters();
+                            app.input_mode = InputMode::Normal;
+                        }
                         KeyCode::Esc | KeyCode::Char('q') => {
                             app.input_mode = InputMode::Normal;
                         }

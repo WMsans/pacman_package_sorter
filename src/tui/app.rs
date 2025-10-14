@@ -19,10 +19,13 @@ pub enum InputMode {
 
 pub struct App {
     pub packages: Vec<Package>,
+    pub filtered_packages: Vec<Package>,
     pub selected_package: ListState,
     pub sort_key: SortKey,
-    pub filter_repo: Option<String>,
-    pub filter_tag: Option<String>,
+    pub include_tags: Vec<String>,
+    pub exclude_tags: Vec<String>,
+    pub include_repos: Vec<String>,
+    pub exclude_repos: Vec<String>,
     pub input: String,
     pub input_mode: InputMode,
     pub show_explicit: bool,
@@ -33,6 +36,8 @@ pub struct App {
     pub tag_selection: ListState,
     pub sort_options: Vec<SortKey>,
     pub sort_selection: ListState,
+    pub filter_input: String,
+    pub filter_cursor_position: usize,
 }
 
 impl App {
@@ -47,10 +52,13 @@ impl App {
         ];
         App {
             packages: Vec::new(),
+            filtered_packages: Vec::new(),
             selected_package: ListState::default(),
             sort_key: SortKey::Name,
-            filter_repo: None,
-            filter_tag: None,
+            include_tags: Vec::new(),
+            exclude_tags: Vec::new(),
+            include_repos: Vec::new(),
+            exclude_repos: Vec::new(),
             input: String::new(),
             input_mode: InputMode::Normal,
             show_explicit: false,
@@ -61,6 +69,8 @@ impl App {
             tag_selection: ListState::default(),
             sort_options,
             sort_selection: ListState::default(),
+            filter_input: String::new(),
+            filter_cursor_position: 0,
         }
     }
 
@@ -69,8 +79,9 @@ impl App {
         rt.block_on(async {
             self.packages = backend::get_all_packages().await.unwrap_or_default();
         });
+        self.apply_filters();
 
-        if !self.packages.is_empty() {
+        if !self.filtered_packages.is_empty() {
             self.selected_package.select(Some(0));
         }
 
@@ -83,15 +94,28 @@ impl App {
         Ok(())
     }
 
+    pub fn apply_filters(&mut self) {
+        self.filtered_packages = backend::filter_packages(
+            &self.packages,
+            &self.include_tags,
+            &self.exclude_tags,
+            &self.include_repos,
+            &self.exclude_repos,
+            self.show_explicit,
+            self.show_dependency,
+        );
+        self.sort_packages();
+    }
+
     pub fn sort_packages(&mut self) {
-        backend::sort_packages(&mut self.packages, self.sort_key);
+        backend::sort_packages(&mut self.filtered_packages, self.sort_key);
     }
 
     pub fn select_previous(&mut self) {
         let i = match self.selected_package.selected() {
             Some(i) => {
                 if i == 0 {
-                    self.packages.len() - 1
+                    self.filtered_packages.len() - 1
                 } else {
                     i - 1
                 }
@@ -104,7 +128,7 @@ impl App {
     pub fn select_next(&mut self) {
         let i = match self.selected_package.selected() {
             Some(i) => {
-                if i >= self.packages.len() - 1 {
+                if i >= self.filtered_packages.len() - 1 {
                     0
                 } else {
                     i + 1

@@ -226,25 +226,50 @@ fn parse_pacman_date(date_str: &str) -> Result<DateTime<Utc>, AppError> {
 
 // Filter packages based on criteria
 pub fn filter_packages(
-    packages: Vec<Package>,
-    tag: Option<String>,
-    repo: Option<String>,
+    packages: &[Package],
+    include_tags: &[String],
+    exclude_tags: &[String],
+    include_repos: &[String],
+    exclude_repos: &[String],
     explicit: bool,
     dependency: bool,
 ) -> Vec<Package> {
     packages
-        .into_iter()
-        .filter(|p| tag.as_ref().map_or(true, |t| p.tags.contains(t)))
-        .filter(|p| {
-            repo.as_ref().map_or(true, |r| {
-                format!("{:?}", p.repository).to_lowercase() == r.to_lowercase()
-            })
+        .iter()
+        .filter(|p| { // Include tags
+            if include_tags.is_empty() {
+                true
+            } else {
+                include_tags.iter().any(|t| p.tags.contains(t))
+            }
+        })
+        .filter(|p| { // Exclude tags
+            if exclude_tags.is_empty() {
+                true
+            } else {
+                !exclude_tags.iter().any(|t| p.tags.contains(t))
+            }
+        })
+        .filter(|p| { // Include repos
+            if include_repos.is_empty() {
+                true
+            } else {
+                include_repos.iter().any(|r| format!("{:?}", p.repository).to_lowercase() == r.to_lowercase())
+            }
+        })
+        .filter(|p| { // Exclude repos
+            if exclude_repos.is_empty() {
+                true
+            } else {
+                !exclude_repos.iter().any(|r| format!("{:?}", p.repository).to_lowercase() == r.to_lowercase())
+            }
         })
         .filter(|p| match (explicit, dependency) {
             (true, false) => p.is_explicit,
             (false, true) => !p.is_explicit,
             _ => true, // If both or neither flag is set, show all
         })
+        .cloned()
         .collect()
 }
 
