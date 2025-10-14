@@ -16,9 +16,9 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         .direction(Direction::Vertical)
         .constraints(
             [
-                Constraint::Percentage(60), // Package list
-                Constraint::Percentage(20), // Filter
-                Constraint::Percentage(20), // Sorting
+                Constraint::Percentage(80), // Package list
+                Constraint::Percentage(10), // Filter
+                Constraint::Percentage(10), // Sorting
             ]
             .as_ref(),
         )
