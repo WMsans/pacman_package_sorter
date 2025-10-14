@@ -13,6 +13,8 @@ pub enum InputMode {
     Normal,
     Tagging,
     Untagging,
+    Sorting,
+    Filtering,
 }
 
 pub struct App {
@@ -29,11 +31,20 @@ pub struct App {
     pub all_tags: Vec<String>,
     pub filtered_tags: Vec<String>,
     pub tag_selection: ListState,
+    pub sort_options: Vec<SortKey>,
+    pub sort_selection: ListState,
 }
 
 impl App {
     pub fn new() -> Self {
         let all_tags = db::get_all_tags().unwrap_or_default();
+        let sort_options = vec![
+            SortKey::Name,
+            SortKey::Size,
+            SortKey::InstallDate,
+            SortKey::UpdateDate,
+            SortKey::Popularity,
+        ];
         App {
             packages: Vec::new(),
             selected_package: ListState::default(),
@@ -48,6 +59,8 @@ impl App {
             filtered_tags: all_tags.clone(),
             all_tags,
             tag_selection: ListState::default(),
+            sort_options,
+            sort_selection: ListState::default(),
         }
     }
 
@@ -62,9 +75,7 @@ impl App {
         }
 
         loop {
-            // The call must be `ui::ui` because we imported the `ui` module
             terminal.draw(|f| ui::ui(f, self))?;
-            // Now we can call `handle_events` directly
             if handle_events(self)? {
                 break;
             }
@@ -72,23 +83,7 @@ impl App {
         Ok(())
     }
 
-    pub fn sort_by_size(&mut self) {
-        self.sort_key = SortKey::Size;
-        backend::sort_packages(&mut self.packages, self.sort_key);
-    }
-
-    pub fn sort_by_name(&mut self) {
-        self.sort_key = SortKey::Name;
-        backend::sort_packages(&mut self.packages, self.sort_key);
-    }
-
-    pub fn sort_by_install_date(&mut self) {
-        self.sort_key = SortKey::InstallDate;
-        backend::sort_packages(&mut self.packages, self.sort_key);
-    }
-
-    pub fn sort_by_update_date(&mut self) {
-        self.sort_key = SortKey::UpdateDate;
+    pub fn sort_packages(&mut self) {
         backend::sort_packages(&mut self.packages, self.sort_key);
     }
 
@@ -158,6 +153,34 @@ impl App {
         if let Some(tag) = self.filtered_tags.get(i) {
             self.input = tag.clone();
         }
+    }
+
+    pub fn select_previous_sort(&mut self) {
+        let i = match self.sort_selection.selected() {
+            Some(i) => {
+                if i == 0 {
+                    self.sort_options.len() - 1
+                } else {
+                    i - 1
+                }
+            }
+            None => 0,
+        };
+        self.sort_selection.select(Some(i));
+    }
+
+    pub fn select_next_sort(&mut self) {
+        let i = match self.sort_selection.selected() {
+            Some(i) => {
+                if i >= self.sort_options.len() - 1 {
+                    0
+                } else {
+                    i + 1
+                }
+            }
+            None => 0,
+        };
+        self.sort_selection.select(Some(i));
     }
 
     pub fn reload_tags(&mut self) {

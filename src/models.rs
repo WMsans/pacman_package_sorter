@@ -2,6 +2,7 @@ use crate::error::AppError;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
+use std::fmt;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Package {
@@ -10,16 +11,13 @@ pub struct Package {
     pub description: String,
     pub repository: Repository,
     pub install_date: DateTime<Utc>,
-    pub build_date: DateTime<Utc>, // Used for "last updated"
-    pub size: f64, // Size in MiB
+    pub build_date: DateTime<Utc>,
+    pub size: f64,
     pub is_explicit: bool,
-    #[serde(default)] // Tags might not exist in the file
+    #[serde(default)]
     pub tags: Vec<String>,
-    // Add fields for AUR data
     pub popularity: Option<f64>,
     pub num_votes: Option<u32>,
-    // TODO: Implement dependency size calculation
-    // pub dependency_size: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -32,7 +30,6 @@ pub enum Repository {
     Unknown,
 }
 
-// Allows us to create a Repository from a string (e.g., "core")
 impl From<&str> for Repository {
     fn from(s: &str) -> Self {
         match s.to_lowercase().as_str() {
@@ -40,24 +37,33 @@ impl From<&str> for Repository {
             "extra" => Self::Extra,
             "multilib" => Self::Multilib,
             "community" => Self::Community,
-            "aur" | "local" => Self::AUR, // pacman calls AUR pkgs 'local'
+            "aur" | "local" => Self::AUR,
             _ => Self::AUR,
         }
     }
 }
 
-// Enum for our sorting options
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SortKey {
     Name,
     Size,
     InstallDate,
     UpdateDate,
     Popularity,
-    // TODO: Add DependencySize
 }
 
-// Allows clap to parse this from a string argument
+impl fmt::Display for SortKey {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            SortKey::Name => write!(f, "Name"),
+            SortKey::Size => write!(f, "Size"),
+            SortKey::InstallDate => write!(f, "Installed Date"),
+            SortKey::UpdateDate => write!(f, "Update Date"),
+            SortKey::Popularity => write!(f, "Popularity"),
+        }
+    }
+}
+
 impl FromStr for SortKey {
     type Err = crate::error::AppError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
