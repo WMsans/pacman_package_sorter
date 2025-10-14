@@ -1,4 +1,5 @@
-use crate::tui::app::{App, InputMode};
+use crate::tui::app::{App, FilterFocus, InputMode};
+use crate::backend::FilterState;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Margin, Rect},
     style::{Color, Modifier, Style},
@@ -100,12 +101,37 @@ fn render_package_info(frame: &mut Frame, area: Rect, app: &App) {
 
 fn render_filters(frame: &mut Frame, area: Rect, app: &App) {
     let block = Block::default().title("Filter (f)").borders(Borders::ALL);
+    let include_tags: Vec<String> = app
+        .tag_filters
+        .iter()
+        .filter(|(_, v)| **v == FilterState::Include)
+        .map(|(k, _)| k.clone())
+        .collect();
+    let exclude_tags: Vec<String> = app
+        .tag_filters
+        .iter()
+        .filter(|(_, v)| **v == FilterState::Exclude)
+        .map(|(k, _)| k.clone())
+        .collect();
+    let include_repos: Vec<String> = app
+        .repo_filters
+        .iter()
+        .filter(|(_, v)| **v == FilterState::Include)
+        .map(|(k, _)| k.clone())
+        .collect();
+    let exclude_repos: Vec<String> = app
+        .repo_filters
+        .iter()
+        .filter(|(_, v)| **v == FilterState::Exclude)
+        .map(|(k, _)| k.clone())
+        .collect();
+
     let text = format!(
         "Include Tags: {}\nExclude Tags: {}\nInclude Repos: {}\nExclude Repos: {}",
-        app.include_tags.join(", "),
-        app.exclude_tags.join(", "),
-        app.include_repos.join(", "),
-        app.exclude_repos.join(", "),
+        include_tags.join(", "),
+        exclude_tags.join(", "),
+        include_repos.join(", "),
+        exclude_repos.join(", "),
     );
     let paragraph = Paragraph::new(text).block(block);
     frame.render_widget(paragraph, area);
@@ -194,9 +220,8 @@ fn render_sort_modal(frame: &mut Frame, app: &mut App) {
 }
 
 fn render_filter_modal(frame: &mut Frame, app: &mut App) {
-    let area = centered_rect(60, 50, frame.area());
+    let area = centered_rect(80, 80, frame.area());
     let block = Block::default().title("Filter by").borders(Borders::ALL);
-    let instructions = "Prefix with `+` to include, `-` to exclude. Suffix with `:tag` or `:repo`. E.g. `+mytag:tag -extra:repo`";
 
     frame.render_widget(Clear, area);
     frame.render_widget(block, area);
@@ -206,25 +231,84 @@ fn render_filter_modal(frame: &mut Frame, app: &mut App) {
         .margin(1)
         .constraints(
             [
-                Constraint::Length(1),
-                Constraint::Length(3),
-                Constraint::Min(0),
+                Constraint::Length(3), // Input for fuzzy search
+                Constraint::Min(0),    // Lists
             ]
             .as_ref(),
         )
         .split(area);
 
-    let instructions_p = Paragraph::new(instructions);
-    frame.render_widget(instructions_p, chunks[0]);
-
     let input = Paragraph::new(app.filter_input.as_str())
         .style(Style::default().fg(Color::Yellow))
-        .block(Block::default().borders(Borders::ALL).title("Input"));
-    frame.render_widget(input, chunks[1]);
+        .block(Block::default().borders(Borders::ALL).title("Search"));
+    frame.render_widget(input, chunks[0]);
     frame.set_cursor(
-        chunks[1].x + app.filter_cursor_position as u16 + 1,
-        chunks[1].y + 1,
+        chunks[0].x + app.filter_cursor_position as u16 + 1,
+        chunks[0].y + 1,
     );
+
+    let list_chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
+        .split(chunks[1]);
+
+    // Tags list
+    let tag_items: Vec<ListItem> = app
+        .filtered_tags
+        .iter()
+        .map(|t| {
+            let state = app.tag_filters.get(t).cloned().unwrap_or_default();
+            let prefix = match state {
+                FilterState::Include => "[+] ",
+                FilterState::Exclude => "[-] ",
+                FilterState::Ignore => "[ ] ",
+            };
+            ListItem::new(format!("{}{}", prefix, t))
+        })
+        .collect();
+
+    let tags_list = List::new(tag_items)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Tags")
+                .border_style(match app.filter_focus {
+                    FilterFocus::Tags => Style::default().fg(Color::Yellow),
+                    _ => Style::default(),
+                }),
+        )
+        .highlight_style(Style::default().add_modifier(Modifier::BOLD).bg(Color::DarkGray))
+        .highlight_symbol("> ");
+    frame.render_stateful_widget(tags_list, list_chunks[0], &mut app.tag_filter_selection);
+
+    // Repos list
+    let repo_items: Vec<ListItem> = app
+        .filtered_repos
+        .iter()
+        .map(|r| {
+            let state = app.repo_filters.get(r).cloned().unwrap_or_default();
+            let prefix = match state {
+                FilterState::Include => "[+] ",
+                FilterState::Exclude => "[-] ",
+                FilterState::Ignore => "[ ] ",
+            };
+            ListItem::new(format!("{}{}", prefix, r))
+        })
+        .collect();
+
+    let repos_list = List::new(repo_items)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Repositories")
+                .border_style(match app.filter_focus {
+                    FilterFocus::Repos => Style::default().fg(Color::Yellow),
+                    _ => Style::default(),
+                }),
+        )
+        .highlight_style(Style::default().add_modifier(Modifier::BOLD).bg(Color::DarkGray))
+        .highlight_symbol("> ");
+    frame.render_stateful_widget(repos_list, list_chunks[1], &mut app.repo_filter_selection);
 }
 
 fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
