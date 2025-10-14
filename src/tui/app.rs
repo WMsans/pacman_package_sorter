@@ -20,6 +20,7 @@ pub enum InputMode {
 }
 
 pub enum FilterFocus {
+    Search,
     Tags,
     Repos,
 }
@@ -83,7 +84,7 @@ impl App {
             filter_cursor_position: 0,
             tag_filter_selection: ListState::default(),
             repo_filter_selection: ListState::default(),
-            filter_focus: FilterFocus::Tags,
+            filter_focus: FilterFocus::Search,
         }
     }
 
@@ -262,33 +263,38 @@ impl App {
         self.repo_filter_selection.select(if self.filtered_repos.is_empty() { None } else { Some(0) });
     }
 
-    pub fn cycle_current_filter(&mut self) {
-        match self.filter_focus {
-            FilterFocus::Tags => {
-                if let Some(selected) = self.tag_filter_selection.selected() {
-                    if let Some(tag) = self.filtered_tags.get(selected) {
-                        let current_state = self.tag_filters.get(tag).cloned().unwrap_or_default();
-                        let next_state = match current_state {
-                            FilterState::Ignore => FilterState::Include,
-                            FilterState::Include => FilterState::Exclude,
-                            FilterState::Exclude => FilterState::Ignore,
-                        };
-                        self.tag_filters.insert(tag.clone(), next_state);
+    pub fn cycle_filter_state(&mut self, forward: bool) {
+        let (selected_index, items, filters) = match self.filter_focus {
+            FilterFocus::Tags => (
+                self.tag_filter_selection.selected(),
+                &self.filtered_tags,
+                &mut self.tag_filters,
+            ),
+            FilterFocus::Repos => (
+                self.repo_filter_selection.selected(),
+                &self.filtered_repos,
+                &mut self.repo_filters,
+            ),
+            FilterFocus::Search => return,
+        };
+
+        if let Some(selected) = selected_index {
+            if let Some(key) = items.get(selected) {
+                let current_state = filters.get(key).cloned().unwrap_or_default();
+                let next_state = if forward {
+                    match current_state {
+                        FilterState::Ignore => FilterState::Include,
+                        FilterState::Include => FilterState::Exclude,
+                        FilterState::Exclude => FilterState::Ignore,
                     }
-                }
-            }
-            FilterFocus::Repos => {
-                if let Some(selected) = self.repo_filter_selection.selected() {
-                    if let Some(repo) = self.filtered_repos.get(selected) {
-                        let current_state = self.repo_filters.get(repo).cloned().unwrap_or_default();
-                        let next_state = match current_state {
-                            FilterState::Ignore => FilterState::Include,
-                            FilterState::Include => FilterState::Exclude,
-                            FilterState::Exclude => FilterState::Ignore,
-                        };
-                        self.repo_filters.insert(repo.clone(), next_state);
+                } else {
+                    match current_state {
+                        FilterState::Ignore => FilterState::Exclude,
+                        FilterState::Exclude => FilterState::Include,
+                        FilterState::Include => FilterState::Ignore,
                     }
-                }
+                };
+                filters.insert(key.clone(), next_state);
             }
         }
     }

@@ -241,14 +241,24 @@ fn render_filter_modal(frame: &mut Frame, app: &mut App) {
 
     let input = Paragraph::new(app.filter_input.as_str())
         .style(Style::default().fg(Color::Yellow))
-        .block(Block::default().borders(Borders::ALL).title("Search"));
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Search")
+                .border_style(match app.filter_focus {
+                    FilterFocus::Search => Style::default().fg(Color::Yellow),
+                    _ => Style::default(),
+                }),
+        );
     frame.render_widget(input, chunks[0]);
-    frame.set_cursor_position(
-            Position{
-                x: chunks[0].x + app.filter_cursor_position as u16 + 1,
-                y: chunks[0].y + 1,
-            }
-    );
+    if let FilterFocus::Search = app.filter_focus {
+        frame.set_cursor_position(
+                Position{
+                    x: chunks[0].x + app.filter_cursor_position as u16 + 1,
+                    y: chunks[0].y + 1,
+                }
+        );
+    }
 
     let list_chunks = Layout::default()
         .direction(Direction::Horizontal)

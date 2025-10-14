@@ -115,100 +115,92 @@ pub fn handle_events(app: &mut App) -> std::io::Result<bool> {
                     }
                     _ => {}
                 },
-                InputMode::Filtering => match key.code {
-                    KeyCode::Char(c) => {
-                        app.filter_input.insert(app.filter_cursor_position, c);
-                        app.filter_cursor_position += 1;
-                        app.update_filtered_filter_options();
-                    }
-                    KeyCode::Backspace => {
-                        if app.filter_cursor_position > 0 {
-                            app.filter_cursor_position -= 1;
-                            app.filter_input.remove(app.filter_cursor_position);
-                            app.update_filtered_filter_options();
-                        }
-                    }
-                    KeyCode::Left => {
-                        if app.filter_cursor_position > 0 {
-                            app.filter_cursor_position -= 1;
-                        }
-                    }
-                    KeyCode::Right => {
-                        if app.filter_cursor_position < app.filter_input.len() {
-                            app.filter_cursor_position += 1;
-                        }
-                    }
-                    KeyCode::Up | KeyCode::Char('k') => match app.filter_focus {
-                        FilterFocus::Tags => {
-                            let i = match app.tag_filter_selection.selected() {
-                                Some(i) => {
-                                    if i == 0 {
-                                        app.filtered_tags.len() - 1
-                                    } else {
-                                        i - 1
-                                    }
+                InputMode::Filtering => {
+                    match app.filter_focus {
+                        FilterFocus::Search => match key.code {
+                            KeyCode::Char(c) => {
+                                app.filter_input.insert(app.filter_cursor_position, c);
+                                app.filter_cursor_position += 1;
+                                app.update_filtered_filter_options();
+                            }
+                            KeyCode::Backspace => {
+                                if app.filter_cursor_position > 0 {
+                                    app.filter_cursor_position -= 1;
+                                    app.filter_input.remove(app.filter_cursor_position);
+                                    app.update_filtered_filter_options();
                                 }
-                                None => 0,
-                            };
-                            app.tag_filter_selection.select(Some(i));
-                        }
-                        FilterFocus::Repos => {
-                            let i = match app.repo_filter_selection.selected() {
-                                Some(i) => {
-                                    if i == 0 {
-                                        app.filtered_repos.len() - 1
-                                    } else {
-                                        i - 1
-                                    }
+                            }
+                            KeyCode::Left => {
+                                if app.filter_cursor_position > 0 {
+                                    app.filter_cursor_position -= 1;
                                 }
-                                None => 0,
-                            };
-                            app.repo_filter_selection.select(Some(i));
-                        }
-                    },
-                    KeyCode::Down | KeyCode::Char('j') => match app.filter_focus {
-                        FilterFocus::Tags => {
-                            let i = match app.tag_filter_selection.selected() {
-                                Some(i) => {
-                                    if i >= app.filtered_tags.len() - 1 {
-                                        0
-                                    } else {
-                                        i + 1
-                                    }
+                            }
+                            KeyCode::Right => {
+                                if app.filter_cursor_position < app.filter_input.len() {
+                                    app.filter_cursor_position += 1;
                                 }
-                                None => 0,
-                            };
-                            app.tag_filter_selection.select(Some(i));
-                        }
-                        FilterFocus::Repos => {
-                            let i = match app.repo_filter_selection.selected() {
-                                Some(i) => {
-                                    if i >= app.filtered_repos.len() - 1 {
-                                        0
-                                    } else {
-                                        i + 1
-                                    }
+                            }
+                            KeyCode::Tab => {
+                                app.filter_focus = FilterFocus::Tags;
+                            }
+                            KeyCode::Esc | KeyCode::Char('q') => {
+                                app.apply_filters();
+                                app.input_mode = InputMode::Normal;
+                            }
+                            _ => {}
+                        },
+                        FilterFocus::Tags | FilterFocus::Repos => match key.code {
+                            KeyCode::Char('j') | KeyCode::Down => {
+                                if let FilterFocus::Tags = app.filter_focus {
+                                    let i = match app.tag_filter_selection.selected() {
+                                        Some(i) => if i >= app.filtered_tags.len() - 1 { 0 } else { i + 1 },
+                                        None => 0,
+                                    };
+                                    app.tag_filter_selection.select(Some(i));
+                                } else {
+                                    let i = match app.repo_filter_selection.selected() {
+                                        Some(i) => if i >= app.filtered_repos.len() - 1 { 0 } else { i + 1 },
+                                        None => 0,
+                                    };
+                                    app.repo_filter_selection.select(Some(i));
                                 }
-                                None => 0,
-                            };
-                            app.repo_filter_selection.select(Some(i));
-                        }
-                    },
-                    KeyCode::Tab => {
-                        app.filter_focus = match app.filter_focus {
-                            FilterFocus::Tags => FilterFocus::Repos,
-                            FilterFocus::Repos => FilterFocus::Tags,
-                        }
+                            }
+                            KeyCode::Char('k') | KeyCode::Up => {
+                                if let FilterFocus::Tags = app.filter_focus {
+                                    let i = match app.tag_filter_selection.selected() {
+                                        Some(i) => if i == 0 { app.filtered_tags.len() - 1 } else { i - 1 },
+                                        None => 0,
+                                    };
+                                    app.tag_filter_selection.select(Some(i));
+                                } else {
+                                    let i = match app.repo_filter_selection.selected() {
+                                        Some(i) => if i == 0 { app.filtered_repos.len() - 1 } else { i - 1 },
+                                        None => 0,
+                                    };
+                                    app.repo_filter_selection.select(Some(i));
+                                }
+                            }
+                            KeyCode::Char('l') | KeyCode::Right | KeyCode::Enter => {
+                                app.cycle_filter_state(true);
+                            }
+                            KeyCode::Char('h') | KeyCode::Left => {
+                                app.cycle_filter_state(false);
+                            }
+                            KeyCode::Tab => {
+                                app.filter_focus = match app.filter_focus {
+                                    FilterFocus::Tags => FilterFocus::Repos,
+                                    FilterFocus::Repos => FilterFocus::Search,
+                                    _ => FilterFocus::Search,
+                                }
+                            }
+                            KeyCode::Esc | KeyCode::Char('q') => {
+                                app.apply_filters();
+                                app.input_mode = InputMode::Normal;
+                            }
+                            _ => {}
+                        },
                     }
-                    KeyCode::Enter => {
-                        app.cycle_current_filter();
-                    }
-                    KeyCode::Esc | KeyCode::Char('q') => {
-                        app.apply_filters();
-                        app.input_mode = InputMode::Normal;
-                    }
-                    _ => {}
-                },
+                }
             }
         }
     }
