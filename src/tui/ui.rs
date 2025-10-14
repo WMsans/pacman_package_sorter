@@ -1,6 +1,6 @@
 use crate::tui::app::{App, InputMode};
 use ratatui::{
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::{Constraint, Direction, Layout, Margin, Rect},
     style::{Color, Modifier, Style},
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
     Frame,
@@ -16,9 +16,9 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         .direction(Direction::Vertical)
         .constraints(
             [
-                Constraint::Percentage(60), // Package list
-                Constraint::Percentage(20), // Filter
-                Constraint::Percentage(20), // Sorting
+                Constraint::Percentage(80), // Package list
+                Constraint::Percentage(10), // Filter
+                Constraint::Percentage(10), // Sorting
             ]
             .as_ref(),
         )
@@ -44,9 +44,14 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
     render_actions(frame, right_layout[1], app);
     render_output_window(frame, right_layout[2], app);
 
-    // Render modal last to appear on top
     if let InputMode::Tagging | InputMode::Untagging = app.input_mode {
         render_modal(frame, app);
+    }
+    if let InputMode::Sorting = app.input_mode {
+        render_sort_modal(frame, app);
+    }
+    if let InputMode::Filtering = app.input_mode {
+        render_filter_modal(frame, app);
     }
 }
 
@@ -94,9 +99,9 @@ fn render_package_info(frame: &mut Frame, area: Rect, app: &App) {
 }
 
 fn render_filters(frame: &mut Frame, area: Rect, app: &App) {
-    let block = Block::default().title("Filter").borders(Borders::ALL);
+    let block = Block::default().title("Filter (f)").borders(Borders::ALL);
     let text = format!(
-        "Filter by:\n- (T)ag: {}\n- (R)epo: {}\n- (E)xplicit/(D)ependency",
+        "Tag: {}\nRepo: {}",
         app.filter_tag.as_deref().unwrap_or("None"),
         app.filter_repo.as_deref().unwrap_or("None")
     );
@@ -105,11 +110,8 @@ fn render_filters(frame: &mut Frame, area: Rect, app: &App) {
 }
 
 fn render_sorting(frame: &mut Frame, area: Rect, app: &App) {
-    let block = Block::default().title("Sort").borders(Borders::ALL);
-    let text = format!(
-        "Sort by:\n- (N)ame\n- (S)ize\n- (I)nstalled Date\n\nCurrent: {:?}",
-        app.sort_key
-    );
+    let block = Block::default().title("Sort (s)").borders(Borders::ALL);
+    let text = format!("Current: {}", app.sort_key);
     let paragraph = Paragraph::new(text).block(block);
     frame.render_widget(paragraph, area);
 }
@@ -117,9 +119,10 @@ fn render_sorting(frame: &mut Frame, area: Rect, app: &App) {
 fn render_actions(frame: &mut Frame, area: Rect, app: &App) {
     let block = Block::default().title("Actions").borders(Borders::ALL);
     let text = match app.input_mode {
-        InputMode::Normal => "Actions:\n- Add (A) tag\n- (U)ntag",
+        InputMode::Normal => "Actions:\n- Add (A) tag\n- (D)elete tag",
         InputMode::Tagging => "Enter tag to add, then press Enter",
         InputMode::Untagging => "Enter tag to remove, then press Enter",
+        _ => "",
     };
     let paragraph = Paragraph::new(text).block(block);
     frame.render_widget(paragraph, area);
@@ -137,7 +140,7 @@ fn render_modal(frame: &mut Frame, app: &mut App) {
     let title = if let InputMode::Tagging = app.input_mode { "Add Tag" } else { "Remove Tag" };
     let block = Block::default().title(title).borders(Borders::ALL);
 
-    frame.render_widget(Clear, area); //this clears the background
+    frame.render_widget(Clear, area);
     frame.render_widget(block, area);
 
     let modal_layout = Layout::default()
@@ -145,21 +148,18 @@ fn render_modal(frame: &mut Frame, app: &mut App) {
         .margin(1)
         .constraints(
             [
-                Constraint::Length(3), // Input box
-                Constraint::Min(0),    // Tag list
+                Constraint::Length(3),
+                Constraint::Min(0),
             ]
             .as_ref(),
         )
         .split(area);
 
-    // Render input box
     let input = Paragraph::new(app.input.as_str())
         .style(Style::default().fg(Color::Yellow))
         .block(Block::default().borders(Borders::ALL).title("Input"));
     frame.render_widget(input, modal_layout[0]);
 
-
-    // Render tag suggestions list
     let tag_items: Vec<ListItem> = app.filtered_tags.iter().map(|t| ListItem::new(t.clone())).collect();
 
     let tags_list = List::new(tag_items)
@@ -170,7 +170,39 @@ fn render_modal(frame: &mut Frame, app: &mut App) {
     frame.render_stateful_widget(tags_list, modal_layout[1], &mut app.tag_selection);
 }
 
-/// helper function to create a centered rect using up certain percentage of the screen
+fn render_sort_modal(frame: &mut Frame, app: &mut App) {
+    let area = centered_rect(60, 50, frame.area());
+    let block = Block::default().title("Sort by").borders(Borders::ALL);
+
+    frame.render_widget(Clear, area);
+    frame.render_widget(block, area);
+
+    let items: Vec<ListItem> = app
+        .sort_options
+        .iter()
+        .map(|key| ListItem::new(key.to_string()))
+        .collect();
+
+    let list = List::new(items)
+        .block(Block::default().borders(Borders::ALL).title("Options"))
+        .highlight_style(Style::default().add_modifier(Modifier::BOLD).bg(Color::DarkGray))
+        .highlight_symbol("> ");
+
+    frame.render_stateful_widget(list, area.inner(Margin { horizontal: 1, vertical: 1 }), &mut app.sort_selection);
+}
+
+fn render_filter_modal(frame: &mut Frame, app: &mut App) {
+    let area = centered_rect(60, 50, frame.area());
+    let block = Block::default().title("Filter by").borders(Borders::ALL);
+
+    frame.render_widget(Clear, area);
+    frame.render_widget(block, area);
+
+    let text = "Filtering options will be here.";
+    let paragraph = Paragraph::new(text);
+    frame.render_widget(paragraph, area.inner(Margin { horizontal: 1, vertical: 1 }));
+}
+
 fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
     let popup_layout = Layout::default()
         .direction(Direction::Vertical)
