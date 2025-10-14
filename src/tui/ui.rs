@@ -1,5 +1,6 @@
 use crate::tui::app::{App, FilterFocus, InputMode};
 use crate::backend::FilterState;
+use ratatui::layout::Position;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Margin, Rect},
     style::{Color, Modifier, Style},
@@ -242,9 +243,11 @@ fn render_filter_modal(frame: &mut Frame, app: &mut App) {
         .style(Style::default().fg(Color::Yellow))
         .block(Block::default().borders(Borders::ALL).title("Search"));
     frame.render_widget(input, chunks[0]);
-    frame.set_cursor(
-        chunks[0].x + app.filter_cursor_position as u16 + 1,
-        chunks[0].y + 1,
+    frame.set_cursor_position(
+            Position{
+                x: chunks[0].x + app.filter_cursor_position as u16 + 1,
+                y: chunks[0].y + 1,
+            }
     );
 
     let list_chunks = Layout::default()
