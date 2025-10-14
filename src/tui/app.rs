@@ -4,7 +4,9 @@ use fuzzy_matcher::skim::SkimMatcherV2;
 use ratatui::prelude::*;
 use ratatui::widgets::ListState;
 use ratatui::Terminal;
+use std::collections::HashMap;
 use std::io::Stdout;
+use backend::FilterState;
 
 use crate::tui::event::handle_events;
 use crate::tui::ui;
@@ -17,22 +19,35 @@ pub enum InputMode {
     Filtering,
 }
 
+pub enum FilterFocus {
+    Tags,
+    Repos,
+}
+
 pub struct App {
     pub packages: Vec<Package>,
+    pub filtered_packages: Vec<Package>,
     pub selected_package: ListState,
     pub sort_key: SortKey,
-    pub filter_repo: Option<String>,
-    pub filter_tag: Option<String>,
+    pub tag_filters: HashMap<String, FilterState>,
+    pub repo_filters: HashMap<String, FilterState>,
     pub input: String,
     pub input_mode: InputMode,
     pub show_explicit: bool,
     pub show_dependency: bool,
     pub output: Vec<String>,
     pub all_tags: Vec<String>,
+    pub all_repos: Vec<String>,
     pub filtered_tags: Vec<String>,
+    pub filtered_repos: Vec<String>,
     pub tag_selection: ListState,
     pub sort_options: Vec<SortKey>,
     pub sort_selection: ListState,
+    pub filter_input: String,
+    pub filter_cursor_position: usize,
+    pub tag_filter_selection: ListState,
+    pub repo_filter_selection: ListState,
+    pub filter_focus: FilterFocus,
 }
 
 impl App {
@@ -47,10 +62,11 @@ impl App {
         ];
         App {
             packages: Vec::new(),
+            filtered_packages: Vec::new(),
             selected_package: ListState::default(),
             sort_key: SortKey::Name,
-            filter_repo: None,
-            filter_tag: None,
+            tag_filters: HashMap::new(),
+            repo_filters: HashMap::new(),
             input: String::new(),
             input_mode: InputMode::Normal,
             show_explicit: false,
@@ -58,9 +74,16 @@ impl App {
             output: Vec::new(),
             filtered_tags: all_tags.clone(),
             all_tags,
+            all_repos: Vec::new(),
+            filtered_repos: Vec::new(),
             tag_selection: ListState::default(),
             sort_options,
             sort_selection: ListState::default(),
+            filter_input: String::new(),
+            filter_cursor_position: 0,
+            tag_filter_selection: ListState::default(),
+            repo_filter_selection: ListState::default(),
+            filter_focus: FilterFocus::Tags,
         }
     }
 
@@ -69,8 +92,10 @@ impl App {
         rt.block_on(async {
             self.packages = backend::get_all_packages().await.unwrap_or_default();
         });
+        self.all_repos = backend::get_all_repos(&self.packages);
+        self.apply_filters();
 
-        if !self.packages.is_empty() {
+        if !self.filtered_packages.is_empty() {
             self.selected_package.select(Some(0));
         }
 
@@ -83,15 +108,26 @@ impl App {
         Ok(())
     }
 
+    pub fn apply_filters(&mut self) {
+        self.filtered_packages = backend::filter_packages(
+            &self.packages,
+            &self.tag_filters,
+            &self.repo_filters,
+            self.show_explicit,
+            self.show_dependency,
+        );
+        self.sort_packages();
+    }
+
     pub fn sort_packages(&mut self) {
-        backend::sort_packages(&mut self.packages, self.sort_key);
+        backend::sort_packages(&mut self.filtered_packages, self.sort_key);
     }
 
     pub fn select_previous(&mut self) {
         let i = match self.selected_package.selected() {
             Some(i) => {
                 if i == 0 {
-                    self.packages.len() - 1
+                    self.filtered_packages.len() - 1
                 } else {
                     i - 1
                 }
@@ -104,7 +140,7 @@ impl App {
     pub fn select_next(&mut self) {
         let i = match self.selected_package.selected() {
             Some(i) => {
-                if i >= self.packages.len() - 1 {
+                if i >= self.filtered_packages.len() - 1 {
                     0
                 } else {
                     i + 1
@@ -201,5 +237,59 @@ impl App {
                 .collect();
         }
         self.tag_selection.select(if self.filtered_tags.is_empty() { None } else { Some(0) });
+    }
+
+    pub fn update_filtered_filter_options(&mut self) {
+        let matcher = SkimMatcherV2::default();
+        if self.filter_input.is_empty() {
+            self.filtered_tags = self.all_tags.clone();
+            self.filtered_repos = self.all_repos.clone();
+        } else {
+            self.filtered_tags = self
+                .all_tags
+                .iter()
+                .filter(|tag| matcher.fuzzy_match(tag, &self.filter_input).is_some())
+                .cloned()
+                .collect();
+            self.filtered_repos = self
+                .all_repos
+                .iter()
+                .filter(|repo| matcher.fuzzy_match(repo, &self.filter_input).is_some())
+                .cloned()
+                .collect();
+        }
+        self.tag_filter_selection.select(if self.filtered_tags.is_empty() { None } else { Some(0) });
+        self.repo_filter_selection.select(if self.filtered_repos.is_empty() { None } else { Some(0) });
+    }
+
+    pub fn cycle_current_filter(&mut self) {
+        match self.filter_focus {
+            FilterFocus::Tags => {
+                if let Some(selected) = self.tag_filter_selection.selected() {
+                    if let Some(tag) = self.filtered_tags.get(selected) {
+                        let current_state = self.tag_filters.get(tag).cloned().unwrap_or_default();
+                        let next_state = match current_state {
+                            FilterState::Ignore => FilterState::Include,
+                            FilterState::Include => FilterState::Exclude,
+                            FilterState::Exclude => FilterState::Ignore,
+                        };
+                        self.tag_filters.insert(tag.clone(), next_state);
+                    }
+                }
+            }
+            FilterFocus::Repos => {
+                if let Some(selected) = self.repo_filter_selection.selected() {
+                    if let Some(repo) = self.filtered_repos.get(selected) {
+                        let current_state = self.repo_filters.get(repo).cloned().unwrap_or_default();
+                        let next_state = match current_state {
+                            FilterState::Ignore => FilterState::Include,
+                            FilterState::Include => FilterState::Exclude,
+                            FilterState::Exclude => FilterState::Ignore,
+                        };
+                        self.repo_filters.insert(repo.clone(), next_state);
+                    }
+                }
+            }
+        }
     }
 }
