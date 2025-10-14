@@ -1,12 +1,15 @@
-use crate::{backend, db, models::Package, models::SortKey};
-use fuzzy_matcher::FuzzyMatcher;
+use crate::{
+    backend, db,
+    packages::models::{Package, SortKey},
+};
+use backend::FilterState;
 use fuzzy_matcher::skim::SkimMatcherV2;
+use fuzzy_matcher::FuzzyMatcher;
 use ratatui::prelude::*;
 use ratatui::widgets::ListState;
 use ratatui::Terminal;
 use std::collections::HashMap;
 use std::io::Stdout;
-use backend::FilterState;
 
 use crate::tui::event::handle_events;
 use crate::tui::ui;
@@ -88,10 +91,15 @@ impl App {
         }
     }
 
-    pub fn run(&mut self, terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> std::io::Result<()> {
+    pub fn run(
+        &mut self,
+        terminal: &mut Terminal<CrosstermBackend<Stdout>>,
+    ) -> std::io::Result<()> {
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
-            self.packages = backend::get_all_packages().await.unwrap_or_default();
+            self.packages = crate::packages::pacman::get_all_packages()
+                .await
+                .unwrap_or_default();
         });
         self.all_repos = backend::get_all_repos(&self.packages);
         self.apply_filters();
@@ -237,7 +245,11 @@ impl App {
                 .cloned()
                 .collect();
         }
-        self.tag_selection.select(if self.filtered_tags.is_empty() { None } else { Some(0) });
+        self.tag_selection.select(if self.filtered_tags.is_empty() {
+            None
+        } else {
+            Some(0)
+        });
     }
 
     pub fn update_filtered_filter_options(&mut self) {
@@ -259,8 +271,18 @@ impl App {
                 .cloned()
                 .collect();
         }
-        self.tag_filter_selection.select(if self.filtered_tags.is_empty() { None } else { Some(0) });
-        self.repo_filter_selection.select(if self.filtered_repos.is_empty() { None } else { Some(0) });
+        self.tag_filter_selection
+            .select(if self.filtered_tags.is_empty() {
+                None
+            } else {
+                Some(0)
+            });
+        self.repo_filter_selection
+            .select(if self.filtered_repos.is_empty() {
+                None
+            } else {
+                Some(0)
+            });
     }
 
     pub fn cycle_filter_state(&mut self, forward: bool) {
