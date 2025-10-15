@@ -1,7 +1,13 @@
 use crate::{
-    packages::models::{SortKey},
+    packages::models::SortKey,
+    tui::{
+        app::App,
+        app_states::{app_state::InputMode, state::KeyEventHandler},
+    },
 };
+use crossterm::event::KeyCode;
 use ratatui::widgets::ListState;
+use std::io;
 
 /// Manages the state for the sorting functionality
 pub struct SortState {
@@ -27,7 +33,13 @@ impl SortState {
 
     pub fn select_previous(&mut self) {
         let i = match self.selection.selected() {
-            Some(i) => if i == 0 { self.options.len() - 1 } else { i - 1 },
+            Some(i) => {
+                if i == 0 {
+                    self.options.len() - 1
+                } else {
+                    i - 1
+                }
+            }
             None => 0,
         };
         self.selection.select(Some(i));
@@ -35,9 +47,44 @@ impl SortState {
 
     pub fn select_next(&mut self) {
         let i = match self.selection.selected() {
-            Some(i) => if i >= self.options.len() - 1 { 0 } else { i + 1 },
+            Some(i) => {
+                if i >= self.options.len() - 1 {
+                    0
+                } else {
+                    i + 1
+                }
+            }
             None => 0,
         };
         self.selection.select(Some(i));
+    }
+}
+
+impl Default for SortState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl KeyEventHandler for SortState {
+    fn handle_key_event(&mut self, app: &mut App, key_code: KeyCode) -> io::Result<bool> {
+        match key_code {
+            KeyCode::Up | KeyCode::Char('k') => self.select_previous(),
+            KeyCode::Down | KeyCode::Char('j') => self.select_next(),
+            KeyCode::Enter => {
+                if let Some(selected) = self.selection.selected() {
+                    if let Some(sort_key) = self.options.get(selected) {
+                        self.active_sort_key = *sort_key;
+                        app.sort_packages();
+                    }
+                }
+                app.input_mode = InputMode::Normal;
+            }
+            KeyCode::Esc | KeyCode::Char('q') => {
+                app.input_mode = InputMode::Normal;
+            }
+            _ => {}
+        }
+        Ok(false)
     }
 }
