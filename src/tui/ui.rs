@@ -1,5 +1,6 @@
-use crate::tui::app::{App, FilterFocus, InputMode};
+use crate::tui::app::{App};
 use crate::backend::FilterState;
+use crate::tui::app_states::app_state::{FilterFocus, InputMode};
 use ratatui::layout::Position;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Margin, Rect},
@@ -18,8 +19,8 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         .direction(Direction::Vertical)
         .constraints(
             [
-                Constraint::Percentage(80), // Package list
-                Constraint::Percentage(10), // Filter
+                Constraint::Percentage(75), // Package list
+                Constraint::Percentage(15), // Filter
                 Constraint::Percentage(10), // Sorting
             ]
             .as_ref(),
@@ -59,7 +60,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
 
 fn render_package_list(frame: &mut Frame, area: Rect, app: &mut App) {
     let items: Vec<ListItem> = app
-        .filtered_packages
+        .state.filtered_packages
         .iter()
         .map(|p| ListItem::new(p.name.clone()))
         .collect();
@@ -78,7 +79,7 @@ fn render_package_info(frame: &mut Frame, area: Rect, app: &App) {
         .borders(Borders::ALL);
 
     let info_text = if let Some(selected) = app.selected_package.selected() {
-        if let Some(package) = app.filtered_packages.get(selected) {
+        if let Some(package) = app.state.filtered_packages.get(selected) {
             format!(
                 "Name: {}\nVersion: {}\nRepository: {:?}\nDescription: {}\nInstalled: {}\nSize: {:.2} MiB\nTags: {}",
                 package.name,
@@ -103,25 +104,25 @@ fn render_package_info(frame: &mut Frame, area: Rect, app: &App) {
 fn render_filters(frame: &mut Frame, area: Rect, app: &App) {
     let block = Block::default().title("Filter (f)").borders(Borders::ALL);
     let include_tags: Vec<String> = app
-        .tag_filters
+        .filter_state.tag_filters
         .iter()
         .filter(|(_, v)| **v == FilterState::Include)
         .map(|(k, _)| k.clone())
         .collect();
     let exclude_tags: Vec<String> = app
-        .tag_filters
+        .filter_state.tag_filters
         .iter()
         .filter(|(_, v)| **v == FilterState::Exclude)
         .map(|(k, _)| k.clone())
         .collect();
     let include_repos: Vec<String> = app
-        .repo_filters
+        .filter_state.repo_filters
         .iter()
         .filter(|(_, v)| **v == FilterState::Include)
         .map(|(k, _)| k.clone())
         .collect();
     let exclude_repos: Vec<String> = app
-        .repo_filters
+        .filter_state.repo_filters
         .iter()
         .filter(|(_, v)| **v == FilterState::Exclude)
         .map(|(k, _)| k.clone())
@@ -140,7 +141,7 @@ fn render_filters(frame: &mut Frame, area: Rect, app: &App) {
 
 fn render_sorting(frame: &mut Frame, area: Rect, app: &App) {
     let block = Block::default().title("Sort (s)").borders(Borders::ALL);
-    let text = format!("Current: {}", app.sort_key);
+    let text = format!("Current: {}", app.sort_state.active_sort_key);
     let paragraph = Paragraph::new(text).block(block);
     frame.render_widget(paragraph, area);
 }
@@ -184,19 +185,19 @@ fn render_modal(frame: &mut Frame, app: &mut App) {
         )
         .split(area);
 
-    let input = Paragraph::new(app.input.as_str())
+    let input = Paragraph::new(app.tag_state.input.as_str())
         .style(Style::default().fg(Color::Yellow))
         .block(Block::default().borders(Borders::ALL).title("Input"));
     frame.render_widget(input, modal_layout[0]);
 
-    let tag_items: Vec<ListItem> = app.filtered_tags.iter().map(|t| ListItem::new(t.clone())).collect();
+    let tag_items: Vec<ListItem> = app.tag_state.filtered_tags.iter().map(|t| ListItem::new(t.clone())).collect();
 
     let tags_list = List::new(tag_items)
         .block(Block::default().borders(Borders::ALL).title("Existing Tags"))
         .highlight_style(Style::default().add_modifier(Modifier::BOLD).bg(Color::DarkGray))
         .highlight_symbol("> ");
 
-    frame.render_stateful_widget(tags_list, modal_layout[1], &mut app.tag_selection);
+    frame.render_stateful_widget(tags_list, modal_layout[1], &mut app.tag_state.selection);
 }
 
 fn render_sort_modal(frame: &mut Frame, app: &mut App) {
@@ -207,7 +208,7 @@ fn render_sort_modal(frame: &mut Frame, app: &mut App) {
     frame.render_widget(block, area);
 
     let items: Vec<ListItem> = app
-        .sort_options
+        .sort_state.options
         .iter()
         .map(|key| ListItem::new(key.to_string()))
         .collect();
@@ -217,7 +218,7 @@ fn render_sort_modal(frame: &mut Frame, app: &mut App) {
         .highlight_style(Style::default().add_modifier(Modifier::BOLD).bg(Color::DarkGray))
         .highlight_symbol("> ");
 
-    frame.render_stateful_widget(list, area.inner(Margin { horizontal: 1, vertical: 1 }), &mut app.sort_selection);
+    frame.render_stateful_widget(list, area.inner(Margin { horizontal: 1, vertical: 1 }), &mut app.sort_state.selection);
 }
 
 fn render_filter_modal(frame: &mut Frame, app: &mut App) {
@@ -239,16 +240,26 @@ fn render_filter_modal(frame: &mut Frame, app: &mut App) {
         )
         .split(area);
 
-    let input = Paragraph::new(app.filter_input.as_str())
+    let input = Paragraph::new(app.filter_state.input.as_str())
         .style(Style::default().fg(Color::Yellow))
-        .block(Block::default().borders(Borders::ALL).title("Search"));
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Search")
+                .border_style(match app.filter_state.focus {
+                    FilterFocus::Search => Style::default().fg(Color::Yellow),
+                    _ => Style::default(),
+                }),
+        );
     frame.render_widget(input, chunks[0]);
-    frame.set_cursor_position(
-            Position{
-                x: chunks[0].x + app.filter_cursor_position as u16 + 1,
-                y: chunks[0].y + 1,
-            }
-    );
+    if let FilterFocus::Search = app.filter_state.focus {
+        frame.set_cursor_position(
+                Position{
+                    x: chunks[0].x + app.filter_state.cursor_position as u16 + 1,
+                    y: chunks[0].y + 1,
+                }
+        );
+    }
 
     let list_chunks = Layout::default()
         .direction(Direction::Horizontal)
@@ -257,10 +268,10 @@ fn render_filter_modal(frame: &mut Frame, app: &mut App) {
 
     // Tags list
     let tag_items: Vec<ListItem> = app
-        .filtered_tags
+        .filter_state.filtered_tags
         .iter()
         .map(|t| {
-            let state = app.tag_filters.get(t).cloned().unwrap_or_default();
+            let state = app.filter_state.tag_filters.get(t).cloned().unwrap_or_default();
             let prefix = match state {
                 FilterState::Include => "[+] ",
                 FilterState::Exclude => "[-] ",
@@ -275,21 +286,21 @@ fn render_filter_modal(frame: &mut Frame, app: &mut App) {
             Block::default()
                 .borders(Borders::ALL)
                 .title("Tags")
-                .border_style(match app.filter_focus {
+                .border_style(match app.filter_state.focus {
                     FilterFocus::Tags => Style::default().fg(Color::Yellow),
                     _ => Style::default(),
                 }),
         )
         .highlight_style(Style::default().add_modifier(Modifier::BOLD).bg(Color::DarkGray))
         .highlight_symbol("> ");
-    frame.render_stateful_widget(tags_list, list_chunks[0], &mut app.tag_filter_selection);
+    frame.render_stateful_widget(tags_list, list_chunks[0], &mut app.filter_state.tag_selection);
 
     // Repos list
     let repo_items: Vec<ListItem> = app
-        .filtered_repos
+        .filter_state.filtered_repos
         .iter()
         .map(|r| {
-            let state = app.repo_filters.get(r).cloned().unwrap_or_default();
+            let state = app.filter_state.repo_filters.get(r).cloned().unwrap_or_default();
             let prefix = match state {
                 FilterState::Include => "[+] ",
                 FilterState::Exclude => "[-] ",
@@ -304,14 +315,14 @@ fn render_filter_modal(frame: &mut Frame, app: &mut App) {
             Block::default()
                 .borders(Borders::ALL)
                 .title("Repositories")
-                .border_style(match app.filter_focus {
+                .border_style(match app.filter_state.focus {
                     FilterFocus::Repos => Style::default().fg(Color::Yellow),
                     _ => Style::default(),
                 }),
         )
         .highlight_style(Style::default().add_modifier(Modifier::BOLD).bg(Color::DarkGray))
         .highlight_symbol("> ");
-    frame.render_stateful_widget(repos_list, list_chunks[1], &mut app.repo_filter_selection);
+    frame.render_stateful_widget(repos_list, list_chunks[1], &mut app.filter_state.repo_selection);
 }
 
 fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {

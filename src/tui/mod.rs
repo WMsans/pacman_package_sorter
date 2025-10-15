@@ -1,4 +1,5 @@
 mod app;
+pub mod app_states;
 mod event;
 mod terminal;
 mod ui;

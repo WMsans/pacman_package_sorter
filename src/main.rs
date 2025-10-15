@@ -1,7 +1,7 @@
 mod backend;
 mod db;
 mod error;
-mod models;
+mod packages;
 mod tui;
 
 use anyhow::Result;
