@@ -143,13 +143,17 @@ pub fn handle_events(app: &mut App) -> std::io::Result<bool> {
                             KeyCode::Tab => {
                                 app.filter_state.focus = FilterFocus::Tags;
                             }
-                            KeyCode::Esc | KeyCode::Char('q') => {
+                            KeyCode::Esc => {
                                 app.apply_filters();
                                 app.input_mode = InputMode::Normal;
                             }
                             _ => {}
                         },
                         FilterFocus::Tags | FilterFocus::Repos => match key.code {
+                            KeyCode::Char('q') => {
+                                app.apply_filters();
+                                app.input_mode = InputMode::Normal;
+                            }
                             KeyCode::Char('j') | KeyCode::Down => {
                                 if let FilterFocus::Tags = app.filter_state.focus {
                                     let i = match app.filter_state.tag_selection.selected() {
@@ -193,7 +197,7 @@ pub fn handle_events(app: &mut App) -> std::io::Result<bool> {
                                     _ => FilterFocus::Search,
                                 }
                             }
-                            KeyCode::Esc | KeyCode::Char('q') => {
+                            KeyCode::Esc => {
                                 app.apply_filters();
                                 app.input_mode = InputMode::Normal;
                             }
