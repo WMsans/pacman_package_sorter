@@ -1,5 +1,6 @@
-use crate::tui::app::{App, FilterFocus, InputMode};
+use crate::tui::app::{App};
 use crate::backend::FilterState;
+use crate::tui::app_states::app_state::{FilterFocus, InputMode};
 use ratatui::layout::Position;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Margin, Rect},

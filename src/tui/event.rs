@@ -1,4 +1,4 @@
-use crate::{db, tui::app::{App, FilterFocus, InputMode}};
+use crate::{db, tui::app::{App}, tui::app_states::app_state::{FilterFocus, InputMode}};
 use crossterm::event::{self, Event, KeyCode};
 use std::time::Duration;
 
