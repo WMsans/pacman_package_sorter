@@ -35,9 +35,7 @@ impl KeyEventHandler for NormalState {
                 app.input_mode = InputMode::Tagging;
                 app.tag_state.update_filtered_tags(&app.state.all_tags);
                 app.tag_state.selection.select(Some(0));
-                if let Some(tag) = app.tag_state.filtered_tags.get(0) {
-                    app.tag_state.input = tag.clone();
-                }
+                app.tag_state.input.clear(); 
                 app.tag_state.focus = TagModalFocus::Input;
             }
             KeyCode::Char('d') => {
@@ -56,9 +54,7 @@ impl KeyEventHandler for NormalState {
                     app.input_mode = InputMode::Untagging;
                     app.tag_state.update_filtered_tags(&package_tags); // Use package's tags
                     app.tag_state.selection.select(Some(0));
-                    if let Some(tag) = app.tag_state.filtered_tags.get(0) {
-                        app.tag_state.input = tag.clone();
-                    }
+                    app.tag_state.input.clear(); // --- MODIFIED ---
                     app.tag_state.focus = TagModalFocus::Input;
                 } else {
                     app.output
