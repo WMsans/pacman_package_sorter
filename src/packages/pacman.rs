@@ -62,6 +62,53 @@ pub async fn get_all_packages() -> Result<Vec<Package>, AppError> {
     Ok(packages)
 }
 
+/// Gets all available packages from repositories using `pacman -Sl`
+pub fn get_all_available_packages() -> Result<Vec<Package>, AppError> {
+    let output = Command::new("pacman")
+        .arg("-Sl")
+        .env("LC_ALL", "C")
+        .output()
+        .map_err(|e| AppError::CommandFailed(format!("Failed to execute pacman -Sl: {}", e)))?;
+
+    if !output.status.success() {
+        return Err(AppError::CommandFailed(
+            "pacman -Sl command failed".to_string(),
+        ));
+    }
+
+    let output_str = String::from_utf8(output.stdout)
+        .map_err(|_| AppError::ParseError("pacman -Sl output is not valid UTF-8".to_string()))?;
+
+    let mut packages = Vec::new();
+    let now = Utc::now(); // For dummy dates
+
+    for line in output_str.lines() {
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        // Format: <repo> <name> <version> [installed_version]
+        if parts.len() >= 3 {
+            let repo = parts[0];
+            let name = parts[1];
+            let version = parts[2];
+
+            let pkg = Package {
+                name: name.to_string(),
+                version: version.to_string(),
+                description: "N/A (available package)".to_string(), // -Sl doesn't provide description
+                repository: Repository::from(repo),
+                install_date: now, // Dummy data
+                build_date: now,   // Dummy data
+                size: 0.0,         // Dummy data
+                is_explicit: false, // Dummy data
+                tags: Vec::new(),  // Not applicable
+                popularity: None,  // Not fetched for this view
+                num_votes: None,
+            };
+            packages.push(pkg);
+        }
+    }
+    Ok(packages)
+}
+
 // Gets a list of orphan package names
 pub fn get_orphan_package_names() -> Result<Vec<String>, AppError> {
     let output = Command::new("pacman")

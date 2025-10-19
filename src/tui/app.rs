@@ -6,6 +6,7 @@ use ratatui::widgets::ListState;
 use ratatui::Terminal;
 use std::io::Stdout;
 
+use crate::packages::models::ShowMode; 
 use crate::tui::app_states::{
     app_state::{AppState, InputMode},
     filter_modal_state::FilterModalState,
@@ -94,13 +95,21 @@ impl App {
     }
 
     pub fn apply_filters(&mut self) {
+        // Decide which base list of packages to use
+        let source_list = if self.show_mode_state.active_show_mode == ShowMode::AllAvailable {
+            &self.state.available_packages
+        } else {
+            &self.state.packages
+        };
+
         self.state.filtered_packages = backend::filter_packages(
-            &self.state.packages,
+            source_list, // Pass the chosen list
             &self.filter_state.tag_filters,
             &self.filter_state.repo_filters,
             self.show_mode_state.active_show_mode,
             &self.state.orphan_package_names,
         );
+
         if !self.search_input.is_empty() {
             let matcher = SkimMatcherV2::default();
             self.state.filtered_packages = self.state

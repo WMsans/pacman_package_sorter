@@ -1,4 +1,4 @@
-use crate::packages::models::{Package, ShowMode, SortKey}; // --- MODIFIED ---
+use crate::packages::models::{Package, ShowMode, SortKey}; 
 use std::collections::{BTreeSet, HashMap};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -72,6 +72,7 @@ pub fn filter_packages(
             ShowMode::ExplicitlyInstalled => p.is_explicit,
             ShowMode::Dependencies => !p.is_explicit,
             ShowMode::Orphans => orphan_names.contains(&p.name),
+            ShowMode::AllAvailable => true,
         })
         .cloned()
         .collect()

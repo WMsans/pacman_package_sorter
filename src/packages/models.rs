@@ -83,6 +83,7 @@ pub enum ShowMode {
     ExplicitlyInstalled,
     Dependencies,
     Orphans,
+    AllAvailable, 
 }
 
 impl fmt::Display for ShowMode {
@@ -92,6 +93,7 @@ impl fmt::Display for ShowMode {
             ShowMode::ExplicitlyInstalled => write!(f, "Explicitly Installed"),
             ShowMode::Dependencies => write!(f, "Dependencies"),
             ShowMode::Orphans => write!(f, "Orphans"),
+            ShowMode::AllAvailable => write!(f, "All Available"), // --- ADDED ---
         }
     }
 }

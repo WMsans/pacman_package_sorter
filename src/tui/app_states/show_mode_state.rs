@@ -24,6 +24,7 @@ impl ShowModeState {
                 ShowMode::ExplicitlyInstalled,
                 ShowMode::Dependencies,
                 ShowMode::Orphans,
+                ShowMode::AllAvailable, 
             ],
             selection: ListState::default(),
             active_show_mode: ShowMode::AllInstalled,
