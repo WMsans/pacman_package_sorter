@@ -88,7 +88,7 @@ pub enum ShowMode {
 impl fmt::Display for ShowMode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ShowMode::AllInstalled => write!(f, "All Installed (default)"),
+            ShowMode::AllInstalled => write!(f, "All Installed"),
             ShowMode::ExplicitlyInstalled => write!(f, "Explicitly Installed"),
             ShowMode::Dependencies => write!(f, "Dependencies"),
             ShowMode::Orphans => write!(f, "Orphans"),

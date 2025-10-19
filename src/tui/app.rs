@@ -54,8 +54,6 @@ impl App {
             selected_package: ListState::default(),
             input_mode: InputMode::Normal,
             output: Vec::new(),
-            // show_explicit: false,
-            // show_dependency: false,
             search_input: String::new(), 
             search_cursor_position: 0, 
             sort_state,
