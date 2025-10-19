@@ -1,6 +1,6 @@
 use crate::tui::app::{App};
 use crate::backend::FilterState;
-use crate::tui::app_states::app_state::{FilterFocus, InputMode};
+use crate::tui::app_states::app_state::{FilterFocus, InputMode, TagModalFocus};
 use ratatui::layout::Position;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Margin, Rect},
@@ -208,13 +208,25 @@ fn render_modal(frame: &mut Frame, app: &mut App) {
 
     let input = Paragraph::new(app.tag_state.input.as_str())
         .style(Style::default().fg(Color::Yellow))
-        .block(Block::default().borders(Borders::ALL).title("Input"));
+        .block(Block::default().borders(Borders::ALL).title("Input").border_style(match app.tag_state.focus {
+                    TagModalFocus::Input => Style::default().fg(Color::Yellow),
+                    _ => Style::default(),
+                }),);
     frame.render_widget(input, modal_layout[0]);
 
     let tag_items: Vec<ListItem> = app.tag_state.filtered_tags.iter().map(|t| ListItem::new(t.clone())).collect();
 
     let tags_list = List::new(tag_items)
-        .block(Block::default().borders(Borders::ALL).title("Existing Tags"))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Existing Tags")
+                // Add this border_style call
+                .border_style(match app.tag_state.focus {
+                    TagModalFocus::List => Style::default().fg(Color::Yellow),
+                    _ => Style::default(),
+                }),
+        )
         .highlight_style(Style::default().add_modifier(Modifier::BOLD).bg(Color::DarkGray))
         .highlight_symbol("> ");
 

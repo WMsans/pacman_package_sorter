@@ -2,7 +2,7 @@ use crate::{
     db,
     tui::{
         app::App,
-        app_states::{app_state::InputMode, state::KeyEventHandler},
+        app_states::{app_state::InputMode, state::KeyEventHandler, app_state::TagModalFocus},
     },
 };
 use crossterm::event::KeyCode;
@@ -16,6 +16,7 @@ pub struct TagModalState {
     pub input: String,
     pub filtered_tags: Vec<String>,
     pub selection: ListState,
+    pub focus: TagModalFocus,
 }
 
 impl TagModalState {
@@ -24,6 +25,7 @@ impl TagModalState {
             input: String::new(),
             filtered_tags: all_tags.to_vec(),
             selection: ListState::default(),
+            focus: TagModalFocus::Input,
         }
     }
 
@@ -90,15 +92,13 @@ impl Default for TagModalState {
             input: String::new(),
             filtered_tags: Vec::new(),
             selection: ListState::default(),
+            focus: TagModalFocus::Input,
         }
     }
 }
-
 impl KeyEventHandler for TagModalState {
     fn handle_key_event(&mut self, app: &mut App, key_code: KeyCode) -> io::Result<bool> {
         match key_code {
-            KeyCode::Up | KeyCode::Char('k') => self.select_previous_tag(),
-            KeyCode::Down | KeyCode::Char('j') => self.select_next_tag(),
             KeyCode::Enter => {
                 if let Some(selected_index) = app.selected_package.selected() {
                     if let Some(selected_pkg_name) =
@@ -143,22 +143,41 @@ impl KeyEventHandler for TagModalState {
                 self.update_filtered_tags(&app.state.all_tags);
                 app.input_mode = InputMode::Normal;
                 self.selection.select(None);
-            }
-            KeyCode::Char(c) => {
-                self.input.push(c);
-                self.update_filtered_tags(&app.state.all_tags);
-            }
-            KeyCode::Backspace => {
-                self.input.pop();
-                self.update_filtered_tags(&app.state.all_tags);
+                self.focus = TagModalFocus::Input; // Reset focus
             }
             KeyCode::Esc => {
                 self.input.clear();
                 self.update_filtered_tags(&app.state.all_tags);
                 app.input_mode = InputMode::Normal;
                 self.selection.select(None);
+                self.focus = TagModalFocus::Input; // Reset focus
             }
-            _ => {}
+            _ => {
+                match self.focus {
+                    TagModalFocus::Input => match key_code {
+                        KeyCode::Char(c) => {
+                            self.input.push(c);
+                            self.update_filtered_tags(&app.state.all_tags);
+                        }
+                        KeyCode::Backspace => {
+                            self.input.pop();
+                            self.update_filtered_tags(&app.state.all_tags);
+                        }
+                        KeyCode::Tab => {
+                            self.focus = TagModalFocus::List;
+                        }
+                        _ => {}
+                    },
+                    TagModalFocus::List => match key_code {
+                        KeyCode::Up | KeyCode::Char('k') => self.select_previous_tag(),
+                        KeyCode::Down | KeyCode::Char('j') => self.select_next_tag(),
+                        KeyCode::Tab => {
+                            self.focus = TagModalFocus::Input;
+                        }
+                        _ => {}
+                    },
+                }
+            }
         }
         Ok(false)
     }

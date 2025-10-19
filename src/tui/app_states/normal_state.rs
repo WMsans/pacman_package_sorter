@@ -1,6 +1,7 @@
 use crate::tui::app::App;
 use crate::tui::app_states::app_state::InputMode;
 use crate::tui::app_states::state::KeyEventHandler;
+use crate::tui::app_states::app_state::TagModalFocus;
 use crossterm::event::KeyCode;
 use std::io;
 
@@ -37,6 +38,7 @@ impl KeyEventHandler for NormalState {
                 if let Some(tag) = app.tag_state.filtered_tags.get(0) {
                     app.tag_state.input = tag.clone();
                 }
+                app.tag_state.focus = TagModalFocus::Input;
             }
             KeyCode::Char('d') => {
                 app.input_mode = InputMode::Untagging;
@@ -45,6 +47,7 @@ impl KeyEventHandler for NormalState {
                 if let Some(tag) = app.tag_state.filtered_tags.get(0) {
                     app.tag_state.input = tag.clone();
                 }
+                app.tag_state.focus = TagModalFocus::Input;
             }
             _ => {}
         }

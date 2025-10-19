@@ -20,7 +20,11 @@ pub enum FilterFocus {
     Tags,
     Repos,
 }
-
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum TagModalFocus {
+    Input,
+    List,
+}
 // --- State Management Structs ---
 
 /// Holds the core data of the application
