@@ -9,25 +9,30 @@ pub fn handle_events(app: &mut App) -> std::io::Result<bool> {
         if let Event::Key(key) = event::read()? {
             let should_quit = match app.input_mode {
                 InputMode::Normal => {
-                    let mut handler = app.normal_state;
-                    handler.handle_key_event(app, key.code)?
-                }
+                                let mut handler = app.normal_state;
+                                handler.handle_key_event(app, key.code)?
+                            }
                 InputMode::Tagging | InputMode::Untagging => {
-                    let mut handler = std::mem::take(&mut app.tag_state);
-                    let result = handler.handle_key_event(app, key.code)?;
-                    app.tag_state = handler;
-                    result
-                }
+                                let mut handler = std::mem::take(&mut app.tag_state);
+                                let result = handler.handle_key_event(app, key.code)?;
+                                app.tag_state = handler;
+                                result
+                            }
                 InputMode::Sorting => {
-                    let mut handler = std::mem::take(&mut app.sort_state);
-                    let result = handler.handle_key_event(app, key.code)?;
-                    app.sort_state = handler;
-                    result
-                }
+                                let mut handler = std::mem::take(&mut app.sort_state);
+                                let result = handler.handle_key_event(app, key.code)?;
+                                app.sort_state = handler;
+                                result
+                            }
                 InputMode::Filtering => {
-                    let mut handler = std::mem::take(&mut app.filter_state);
+                                let mut handler = std::mem::take(&mut app.filter_state);
+                                let result = handler.handle_key_event(app, key.code)?;
+                                app.filter_state = handler;
+                                result
+                            }
+                InputMode::Searching => { 
+                    let mut handler = app.search_state;
                     let result = handler.handle_key_event(app, key.code)?;
-                    app.filter_state = handler;
                     result
                 }
             };

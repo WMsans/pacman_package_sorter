@@ -22,6 +22,10 @@ impl KeyEventHandler for NormalState {
                 app.filter_state
                     .update_filtered_options(&app.state.all_tags, &app.state.all_repos);
             }
+            KeyCode::Char('/') => { 
+                app.input_mode = InputMode::Searching;
+                app.search_cursor_position = app.search_input.len();
+            }
             KeyCode::Char('a') => {
                 app.input_mode = InputMode::Tagging;
                 app.tag_state.update_filtered_tags(&app.state.all_tags);

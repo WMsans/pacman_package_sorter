@@ -11,6 +11,7 @@ pub enum InputMode {
     Untagging,
     Sorting,
     Filtering,
+    Searching,
 }
 
 pub enum FilterFocus {

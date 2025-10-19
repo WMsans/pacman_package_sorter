@@ -1,4 +1,6 @@
 use crate::{backend, db};
+use fuzzy_matcher::skim::SkimMatcherV2;
+use fuzzy_matcher::FuzzyMatcher;
 use ratatui::prelude::*;
 use ratatui::widgets::ListState;
 use ratatui::Terminal;
@@ -10,6 +12,7 @@ use crate::tui::app_states::{
     normal_state::NormalState,
     sort_state::SortState,
     tag_modal_state::TagModalState,
+    search_state::SearchState,
 };
 use crate::tui::event::handle_events;
 use crate::tui::ui;
@@ -24,11 +27,16 @@ pub struct App {
     pub show_explicit: bool,
     pub show_dependency: bool,
 
+    // Search
+    pub search_input: String, 
+    pub search_cursor_position: usize, 
+
     // UI states
     pub sort_state: SortState,
     pub filter_state: FilterModalState,
     pub tag_state: TagModalState,
     pub normal_state: NormalState,
+    pub search_state: SearchState,
 }
 
 impl App {
@@ -45,10 +53,13 @@ impl App {
             output: Vec::new(),
             show_explicit: false,
             show_dependency: false,
+            search_input: String::new(), 
+            search_cursor_position: 0, 
             sort_state,
             filter_state,
             tag_state,
             normal_state: NormalState,
+            search_state: SearchState,
         }
     }
 
@@ -88,7 +99,21 @@ impl App {
             self.show_explicit,
             self.show_dependency,
         );
+        if !self.search_input.is_empty() {
+            let matcher = SkimMatcherV2::default();
+            self.state.filtered_packages = self.state
+                .filtered_packages
+                .iter()
+                .filter(|pkg| matcher.fuzzy_match(&pkg.name, &self.search_input).is_some())
+                .cloned()
+                .collect();
+        }
         self.sort_packages();
+        if !self.state.filtered_packages.is_empty() {
+            self.selected_package.select(Some(0));
+        } else {
+            self.selected_package.select(None);
+        }
     }
 
     pub fn sort_packages(&mut self) {

@@ -11,9 +11,20 @@ use ratatui::{
 
 pub fn ui(frame: &mut Frame, app: &mut App) {
     let main_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Min(0), // Main content
+            Constraint::Length(3), // Search bar
+        ].as_ref())
+        .split(frame.area());
+    
+    let content_area = main_layout[0];
+    let search_area = main_layout[1];
+    
+    let horizontal_layout = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(30), Constraint::Percentage(70)].as_ref())
-        .split(frame.area());
+        .split(content_area); 
 
     let left_layout = Layout::default()
         .direction(Direction::Vertical)
@@ -25,7 +36,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
             ]
             .as_ref(),
         )
-        .split(main_layout[0]);
+        .split(horizontal_layout[0]); 
 
     render_package_list(frame, left_layout[0], app);
     render_filters(frame, left_layout[1], app);
@@ -41,11 +52,14 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
             ]
             .as_ref(),
         )
-        .split(main_layout[1]);
+        // [FIX] This should split horizontal_layout[1], not main_layout[1]
+        .split(horizontal_layout[1]);
 
     render_package_info(frame, right_layout[0], app);
     render_actions(frame, right_layout[1], app);
     render_output_window(frame, right_layout[2], app);
+
+    render_search_bar(frame, search_area, app);
 
     if let InputMode::Tagging | InputMode::Untagging = app.input_mode {
         render_modal(frame, app);
@@ -149,7 +163,7 @@ fn render_sorting(frame: &mut Frame, area: Rect, app: &App) {
 fn render_actions(frame: &mut Frame, area: Rect, app: &App) {
     let block = Block::default().title("Actions").borders(Borders::ALL);
     let text = match app.input_mode {
-        InputMode::Normal => "Actions:\n- Add (A) tag\n- (D)elete tag",
+        InputMode::Normal => "Actions:\n- (a)dd tag\n- (d)elete tag",
         InputMode::Tagging => "Enter tag to add, then press Enter",
         InputMode::Untagging => "Enter tag to remove, then press Enter",
         _ => "",
@@ -349,4 +363,29 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
             .as_ref(),
         )
         .split(popup_layout[1])[1]
+}
+
+fn render_search_bar(frame: &mut Frame, area: Rect, app: &App) {
+    let input = Paragraph::new(app.search_input.as_str())
+        .style(match app.input_mode {
+            InputMode::Searching => Style::default().fg(Color::Yellow),
+            _ => Style::default(),
+        })
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Search (/)")
+                .border_style(match app.input_mode {
+                    InputMode::Searching => Style::default().fg(Color::Yellow),
+                    _ => Style::default(),
+                }),
+        );
+    frame.render_widget(input, area);
+
+    if let InputMode::Searching = app.input_mode {
+        frame.set_cursor_position(Position {
+            x: area.x + app.search_cursor_position as u16 + 1,
+            y: area.y + 1,
+        });
+    }
 }
