@@ -17,6 +17,10 @@ impl KeyEventHandler for NormalState {
                 app.input_mode = InputMode::Sorting;
                 app.sort_state.selection.select(Some(0));
             }
+            KeyCode::Char('v') => {
+                app.input_mode = InputMode::Showing;
+                app.show_mode_state.select_active();
+            }
             KeyCode::Char('f') => {
                 app.input_mode = InputMode::Filtering;
                 app.filter_state

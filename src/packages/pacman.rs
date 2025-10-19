@@ -62,6 +62,35 @@ pub async fn get_all_packages() -> Result<Vec<Package>, AppError> {
     Ok(packages)
 }
 
+// Gets a list of orphan package names
+pub fn get_orphan_package_names() -> Result<Vec<String>, AppError> {
+    let output = Command::new("pacman")
+        .arg("-Qdt")
+        .output()
+        .map_err(|e| AppError::CommandFailed(format!("Failed to execute pacman -Qdt: {}", e)))?;
+
+    if !output.status.success() {
+        // -Qdt can return 1 if no packages are found, which is not an error
+        if output.stdout.is_empty() {
+            return Ok(Vec::new());
+        }
+        return Err(AppError::CommandFailed(
+            "pacman -Qdt command failed".to_string(),
+        ));
+    }
+
+    let output_str = String::from_utf8(output.stdout)
+        .map_err(|_| AppError::ParseError("pacman -Qdt output is not valid UTF-8".to_string()))?;
+
+    let names: Vec<String> = output_str
+        .lines()
+        .filter_map(|line| line.split_whitespace().next().map(String::from))
+        .collect();
+    
+    Ok(names)
+}
+
+
 // Builds a HashMap mapping package names to their repository
 fn build_repo_map() -> Result<HashMap<String, String>, AppError> {
     let output = Command::new("pacman")

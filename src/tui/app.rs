@@ -10,9 +10,10 @@ use crate::tui::app_states::{
     app_state::{AppState, InputMode},
     filter_modal_state::FilterModalState,
     normal_state::NormalState,
+    search_state::SearchState,
+    show_mode_state::ShowModeState, 
     sort_state::SortState,
     tag_modal_state::TagModalState,
-    search_state::SearchState,
 };
 use crate::tui::event::handle_events;
 use crate::tui::ui;
@@ -24,8 +25,8 @@ pub struct App {
     pub selected_package: ListState,
     pub input_mode: InputMode,
     pub output: Vec<String>,
-    pub show_explicit: bool,
-    pub show_dependency: bool,
+    // pub show_explicit: bool,
+    // pub show_dependency: bool,
 
     // Search
     pub search_input: String, 
@@ -37,6 +38,7 @@ pub struct App {
     pub tag_state: TagModalState,
     pub normal_state: NormalState,
     pub search_state: SearchState,
+    pub show_mode_state: ShowModeState, 
 }
 
 impl App {
@@ -45,14 +47,15 @@ impl App {
         let sort_state = SortState::new();
         let filter_state = FilterModalState::new(&state.all_tags, &state.all_repos);
         let tag_state = TagModalState::new(&state.all_tags);
+        let show_mode_state = ShowModeState::new(); 
 
         App {
             state,
             selected_package: ListState::default(),
             input_mode: InputMode::Normal,
             output: Vec::new(),
-            show_explicit: false,
-            show_dependency: false,
+            // show_explicit: false,
+            // show_dependency: false,
             search_input: String::new(), 
             search_cursor_position: 0, 
             sort_state,
@@ -60,6 +63,7 @@ impl App {
             tag_state,
             normal_state: NormalState,
             search_state: SearchState,
+            show_mode_state, 
         }
     }
 
@@ -96,8 +100,8 @@ impl App {
             &self.state.packages,
             &self.filter_state.tag_filters,
             &self.filter_state.repo_filters,
-            self.show_explicit,
-            self.show_dependency,
+            self.show_mode_state.active_show_mode,
+            &self.state.orphan_package_names,
         );
         if !self.search_input.is_empty() {
             let matcher = SkimMatcherV2::default();

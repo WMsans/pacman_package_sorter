@@ -1,4 +1,4 @@
-use crate::packages::models::{Package, SortKey};
+use crate::packages::models::{Package, ShowMode, SortKey}; // --- MODIFIED ---
 use std::collections::{BTreeSet, HashMap};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -19,8 +19,8 @@ pub fn filter_packages(
     packages: &[Package],
     tag_filters: &HashMap<String, FilterState>,
     repo_filters: &HashMap<String, FilterState>,
-    explicit: bool,
-    dependency: bool,
+    show_mode: ShowMode, 
+    orphan_names: &[String], 
 ) -> Vec<Package> {
     let include_tags: Vec<_> = tag_filters
         .iter()
@@ -67,10 +67,11 @@ pub fn filter_packages(
                 .iter()
                 .any(|r| format!("{:?}", p.repository).to_lowercase() == r.to_lowercase())
         })
-        .filter(|p| match (explicit, dependency) {
-            (true, false) => p.is_explicit,
-            (false, true) => !p.is_explicit,
-            _ => true, // If both or neither flag is set, show all
+        .filter(|p| match show_mode {
+            ShowMode::AllInstalled => true,
+            ShowMode::ExplicitlyInstalled => p.is_explicit,
+            ShowMode::Dependencies => !p.is_explicit,
+            ShowMode::Orphans => orphan_names.contains(&p.name),
         })
         .cloned()
         .collect()

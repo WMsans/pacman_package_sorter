@@ -5,3 +5,4 @@ pub mod sort_state;
 pub mod state;
 pub mod tag_modal_state;
 pub mod search_state;
+pub mod show_mode_state;

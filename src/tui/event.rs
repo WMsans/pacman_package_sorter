@@ -35,6 +35,12 @@ pub fn handle_events(app: &mut App) -> std::io::Result<bool> {
                     let result = handler.handle_key_event(app, key.code)?;
                     result
                 }
+                InputMode::Showing => {
+                    let mut handler = std::mem::take(&mut app.show_mode_state);
+                    let result = handler.handle_key_event(app, key.code)?;
+                    app.show_mode_state = handler;
+                    result
+                }
             };
 
             if should_quit {

@@ -30,8 +30,9 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         .direction(Direction::Vertical)
         .constraints(
             [
-                Constraint::Percentage(75), // Package list
-                Constraint::Percentage(15), // Filter
+                Constraint::Percentage(70), // Package list
+                Constraint::Percentage(10), // Show Mode (NEW)
+                Constraint::Percentage(10), // Filter
                 Constraint::Percentage(10), // Sorting
             ]
             .as_ref(),
@@ -39,8 +40,9 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         .split(horizontal_layout[0]); 
 
     render_package_list(frame, left_layout[0], app);
-    render_filters(frame, left_layout[1], app);
-    render_sorting(frame, left_layout[2], app);
+    render_show_mode(frame, left_layout[1], app); 
+    render_filters(frame, left_layout[2], app); // Index changed
+    render_sorting(frame, left_layout[3], app); // Index changed
 
     let right_layout = Layout::default()
         .direction(Direction::Vertical)
@@ -61,14 +63,12 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
 
     render_search_bar(frame, search_area, app);
 
-    if let InputMode::Tagging | InputMode::Untagging = app.input_mode {
-        render_modal(frame, app);
-    }
-    if let InputMode::Sorting = app.input_mode {
-        render_sort_modal(frame, app);
-    }
-    if let InputMode::Filtering = app.input_mode {
-        render_filter_modal(frame, app);
+    match app.input_mode {
+        InputMode::Tagging | InputMode::Untagging => render_modal(frame, app),
+        InputMode::Sorting => render_sort_modal(frame, app),
+        InputMode::Filtering => render_filter_modal(frame, app),
+        InputMode::Showing => render_show_mode_modal(frame, app),
+        _ => {}
     }
 }
 
@@ -112,6 +112,13 @@ fn render_package_info(frame: &mut Frame, area: Rect, app: &App) {
     };
 
     let paragraph = Paragraph::new(info_text).block(block);
+    frame.render_widget(paragraph, area);
+}
+
+fn render_show_mode(frame: &mut Frame, area: Rect, app: &App) {
+    let block = Block::default().title("Show Mode (v)").borders(Borders::ALL);
+    let text = format!("Current: {}", app.show_mode_state.active_show_mode);
+    let paragraph = Paragraph::new(text).block(block);
     frame.render_widget(paragraph, area);
 }
 
@@ -212,6 +219,27 @@ fn render_modal(frame: &mut Frame, app: &mut App) {
         .highlight_symbol("> ");
 
     frame.render_stateful_widget(tags_list, modal_layout[1], &mut app.tag_state.selection);
+}
+
+fn render_show_mode_modal(frame: &mut Frame, app: &mut App) {
+    let area = centered_rect(60, 50, frame.area());
+    let block = Block::default().title("Show Mode").borders(Borders::ALL);
+
+    frame.render_widget(Clear, area);
+    frame.render_widget(block, area);
+
+    let items: Vec<ListItem> = app
+        .show_mode_state.options
+        .iter()
+        .map(|key| ListItem::new(key.to_string()))
+        .collect();
+
+    let list = List::new(items)
+        .block(Block::default().borders(Borders::ALL).title("Options"))
+        .highlight_style(Style::default().add_modifier(Modifier::BOLD).bg(Color::DarkGray))
+        .highlight_symbol("> ");
+
+    frame.render_stateful_widget(list, area.inner(Margin { horizontal: 1, vertical: 1 }), &mut app.show_mode_state.selection);
 }
 
 fn render_sort_modal(frame: &mut Frame, app: &mut App) {

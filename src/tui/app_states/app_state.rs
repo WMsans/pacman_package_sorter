@@ -1,6 +1,6 @@
 use crate::{
     backend, db,
-    packages::models::{Package},
+    packages::{models::{Package}, pacman}, 
 };
 
 // --- Enums for application state ---
@@ -12,6 +12,7 @@ pub enum InputMode {
     Sorting,
     Filtering,
     Searching,
+    Showing, 
 }
 
 pub enum FilterFocus {
@@ -28,6 +29,7 @@ pub struct AppState {
     pub filtered_packages: Vec<Package>,
     pub all_tags: Vec<String>,
     pub all_repos: Vec<String>,
+    pub orphan_package_names: Vec<String>, 
 }
 
 impl AppState {
@@ -37,6 +39,7 @@ impl AppState {
             filtered_packages: Vec::new(),
             all_tags: db::get_all_tags().unwrap_or_default(),
             all_repos: Vec::new(),
+            orphan_package_names: Vec::new(), 
         }
     }
 
@@ -46,5 +49,6 @@ impl AppState {
             .await
             .unwrap_or_default();
         self.all_repos = backend::get_all_repos(&self.packages);
+        self.orphan_package_names = pacman::get_orphan_package_names().unwrap_or_default(); 
     }
 }
