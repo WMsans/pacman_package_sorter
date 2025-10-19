@@ -2,7 +2,7 @@ use crate::{
     db,
     tui::{
         app::App,
-        app_states::{app_state::InputMode, state::KeyEventHandler},
+        app_states::{app_state::InputMode, state::KeyEventHandler, app_state::TagModalFocus},
     },
 };
 use crossterm::event::KeyCode;
@@ -16,6 +16,7 @@ pub struct TagModalState {
     pub input: String,
     pub filtered_tags: Vec<String>,
     pub selection: ListState,
+    pub focus: TagModalFocus,
 }
 
 impl TagModalState {
@@ -24,16 +25,17 @@ impl TagModalState {
             input: String::new(),
             filtered_tags: all_tags.to_vec(),
             selection: ListState::default(),
+            focus: TagModalFocus::Input,
         }
     }
 
     /// Update the filtered tags based on the input.
-    pub fn update_filtered_tags(&mut self, all_tags: &[String]) {
+    pub fn update_filtered_tags(&mut self, source_tags: &[String]) {
         let matcher = SkimMatcherV2::default();
         if self.input.is_empty() {
-            self.filtered_tags = all_tags.to_vec();
+            self.filtered_tags = source_tags.to_vec();
         } else {
-            self.filtered_tags = all_tags
+            self.filtered_tags = source_tags
                 .iter()
                 .filter(|tag| matcher.fuzzy_match(tag, &self.input).is_some())
                 .cloned()
@@ -41,6 +43,30 @@ impl TagModalState {
         }
         self.selection
             .select(if self.filtered_tags.is_empty() { None } else { Some(0) });
+    }
+    fn update_tags_from_current_mode(&mut self, app: &mut App) {
+        match app.input_mode {
+            InputMode::Tagging => {
+                self.update_filtered_tags(&app.state.all_tags);
+            }
+            InputMode::Untagging => {
+                // Get the *original* list of tags for the selected package
+                let package_tags = if let Some(selected_index) = app.selected_package.selected() {
+                    app.state
+                        .filtered_packages
+                        .get(selected_index)
+                        .map(|p| p.tags.clone())
+                        .unwrap_or_default()
+                } else {
+                    Vec::new()
+                };
+                self.update_filtered_tags(&package_tags);
+            }
+            _ => {
+                // Default case
+                self.update_filtered_tags(&app.state.all_tags);
+            }
+        }
     }
 
     pub fn select_previous_tag(&mut self) {
@@ -90,15 +116,13 @@ impl Default for TagModalState {
             input: String::new(),
             filtered_tags: Vec::new(),
             selection: ListState::default(),
+            focus: TagModalFocus::Input,
         }
     }
 }
-
 impl KeyEventHandler for TagModalState {
     fn handle_key_event(&mut self, app: &mut App, key_code: KeyCode) -> io::Result<bool> {
         match key_code {
-            KeyCode::Up | KeyCode::Char('k') => self.select_previous_tag(),
-            KeyCode::Down | KeyCode::Char('j') => self.select_next_tag(),
             KeyCode::Enter => {
                 if let Some(selected_index) = app.selected_package.selected() {
                     if let Some(selected_pkg_name) =
@@ -131,7 +155,6 @@ impl KeyEventHandler for TagModalState {
                                         }
                                     }
                                     app.reload_tags();
-                                    app.apply_filters(); // Re-apply filters to update the view
                                 }
                                 Err(e) => {
                                     app.output.push(format!("Error: {}", e));
@@ -144,22 +167,48 @@ impl KeyEventHandler for TagModalState {
                 self.update_filtered_tags(&app.state.all_tags);
                 app.input_mode = InputMode::Normal;
                 self.selection.select(None);
-            }
-            KeyCode::Char(c) => {
-                self.input.push(c);
-                self.update_filtered_tags(&app.state.all_tags);
-            }
-            KeyCode::Backspace => {
-                self.input.pop();
-                self.update_filtered_tags(&app.state.all_tags);
+                self.focus = TagModalFocus::Input; // Reset focus
             }
             KeyCode::Esc => {
                 self.input.clear();
                 self.update_filtered_tags(&app.state.all_tags);
                 app.input_mode = InputMode::Normal;
                 self.selection.select(None);
+                self.focus = TagModalFocus::Input; // Reset focus
             }
-            _ => {}
+            _ => {
+                match self.focus {
+                    TagModalFocus::Input => match key_code {
+                        KeyCode::Char(c) => {
+                            self.input.push(c);
+                            self.update_tags_from_current_mode(app);
+                        }
+                        KeyCode::Backspace => {
+                            self.input.pop();
+                            self.update_tags_from_current_mode(app);
+                        }
+                        KeyCode::Tab => {
+                            self.focus = TagModalFocus::List;
+                        }
+                        _ => {}
+                    },
+                    TagModalFocus::List => match key_code {
+                        KeyCode::Char('q') => {
+                            self.input.clear();
+                            self.update_filtered_tags(&app.state.all_tags);
+                            app.input_mode = InputMode::Normal;
+                            self.selection.select(None);
+                            self.focus = TagModalFocus::Input; // Reset focus
+                        }
+                        KeyCode::Up | KeyCode::Char('k') => self.select_previous_tag(),
+                        KeyCode::Down | KeyCode::Char('j') => self.select_next_tag(),
+                        KeyCode::Tab => {
+                            self.focus = TagModalFocus::Input;
+                        }
+                        _ => {}
+                    },
+                }
+            }
         }
         Ok(false)
     }

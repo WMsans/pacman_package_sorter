@@ -1,5 +1,5 @@
 use crate::{
-    packages::models::SortKey,
+    packages::models::ShowMode,
     tui::{
         app::App,
         app_states::{app_state::InputMode, state::KeyEventHandler},
@@ -9,25 +9,25 @@ use crossterm::event::KeyCode;
 use ratatui::widgets::ListState;
 use std::io;
 
-/// Manages the state for the sorting functionality
-pub struct SortState {
-    pub options: Vec<SortKey>,
+/// Manages the state for the show mode functionality
+pub struct ShowModeState {
+    pub options: Vec<ShowMode>,
     pub selection: ListState,
-    pub active_sort_key: SortKey,
+    pub active_show_mode: ShowMode,
 }
 
-impl SortState {
+impl ShowModeState {
     pub fn new() -> Self {
         Self {
             options: vec![
-                SortKey::Name,
-                SortKey::Size,
-                SortKey::InstallDate,
-                SortKey::UpdateDate,
-                SortKey::Popularity,
+                ShowMode::AllInstalled,
+                ShowMode::ExplicitlyInstalled,
+                ShowMode::Dependencies,
+                ShowMode::Orphans,
+                ShowMode::AllAvailable, 
             ],
             selection: ListState::default(),
-            active_sort_key: SortKey::Name,
+            active_show_mode: ShowMode::AllInstalled,
         }
     }
 
@@ -58,23 +58,32 @@ impl SortState {
         };
         self.selection.select(Some(i));
     }
+
+    /// Sets the selection to the currently active show mode
+    pub fn select_active(&mut self) {
+        if let Some(index) = self.options.iter().position(|&s| s == self.active_show_mode) {
+            self.selection.select(Some(index));
+        } else {
+            self.selection.select(Some(0));
+        }
+    }
 }
 
-impl Default for SortState {
+impl Default for ShowModeState {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl KeyEventHandler for SortState {
+impl KeyEventHandler for ShowModeState {
     fn handle_key_event(&mut self, app: &mut App, key_code: KeyCode) -> io::Result<bool> {
         match key_code {
             KeyCode::Up | KeyCode::Char('k') => self.select_previous(),
             KeyCode::Down | KeyCode::Char('j') => self.select_next(),
             KeyCode::Enter => {
                 if let Some(selected) = self.selection.selected() {
-                    if let Some(sort_key) = self.options.get(selected) {
-                        self.active_sort_key = *sort_key;
+                    if let Some(show_mode) = self.options.get(selected) {
+                        self.active_show_mode = *show_mode;
                     }
                 }
                 app.input_mode = InputMode::Normal;

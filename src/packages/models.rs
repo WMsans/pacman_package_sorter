@@ -77,3 +77,23 @@ impl FromStr for SortKey {
         }
     }
 }
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ShowMode {
+    AllInstalled,
+    ExplicitlyInstalled,
+    Dependencies,
+    Orphans,
+    AllAvailable, 
+}
+
+impl fmt::Display for ShowMode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ShowMode::AllInstalled => write!(f, "All Installed"),
+            ShowMode::ExplicitlyInstalled => write!(f, "Explicitly Installed"),
+            ShowMode::Dependencies => write!(f, "Dependencies"),
+            ShowMode::Orphans => write!(f, "Orphans"),
+            ShowMode::AllAvailable => write!(f, "All Available"), // --- ADDED ---
+        }
+    }
+}
