@@ -75,7 +75,6 @@ impl KeyEventHandler for SortState {
                 if let Some(selected) = self.selection.selected() {
                     if let Some(sort_key) = self.options.get(selected) {
                         self.active_sort_key = *sort_key;
-                        app.sort_packages();
                     }
                 }
                 app.input_mode = InputMode::Normal;

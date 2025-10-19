@@ -83,7 +83,6 @@ impl KeyEventHandler for ShowModeState {
                 if let Some(selected) = self.selection.selected() {
                     if let Some(show_mode) = self.options.get(selected) {
                         self.active_show_mode = *show_mode;
-                        app.apply_filters();
                     }
                 }
                 app.input_mode = InputMode::Normal;

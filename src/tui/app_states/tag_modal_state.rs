@@ -131,7 +131,6 @@ impl KeyEventHandler for TagModalState {
                                         }
                                     }
                                     app.reload_tags();
-                                    app.apply_filters(); // Re-apply filters to update the view
                                 }
                                 Err(e) => {
                                     app.output.push(format!("Error: {}", e));

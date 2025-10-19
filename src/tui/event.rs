@@ -16,18 +16,33 @@ pub fn handle_events(app: &mut App) -> std::io::Result<bool> {
                                 let mut handler = std::mem::take(&mut app.tag_state);
                                 let result = handler.handle_key_event(app, key.code)?;
                                 app.tag_state = handler;
+
+                                if let InputMode::Normal = app.input_mode {
+                                    app.apply_filters();
+                                }
+
                                 result
                             }
                 InputMode::Sorting => {
                                 let mut handler = std::mem::take(&mut app.sort_state);
                                 let result = handler.handle_key_event(app, key.code)?;
                                 app.sort_state = handler;
+
+                                if let InputMode::Normal = app.input_mode {
+                                    app.apply_filters(); 
+                                }
+
                                 result
                             }
                 InputMode::Filtering => {
                                 let mut handler = std::mem::take(&mut app.filter_state);
                                 let result = handler.handle_key_event(app, key.code)?;
                                 app.filter_state = handler;
+
+                                if let InputMode::Normal = app.input_mode {
+                                    app.apply_filters();
+                                }
+
                                 result
                             }
                 InputMode::Searching => { 
@@ -39,6 +54,11 @@ pub fn handle_events(app: &mut App) -> std::io::Result<bool> {
                     let mut handler = std::mem::take(&mut app.show_mode_state);
                     let result = handler.handle_key_event(app, key.code)?;
                     app.show_mode_state = handler;
+
+                    if let InputMode::Normal = app.input_mode {
+                        app.apply_filters();
+                    }
+
                     result
                 }
             };

@@ -152,14 +152,12 @@ impl KeyEventHandler for FilterModalState {
                     self.focus = FilterFocus::Tags;
                 }
                 KeyCode::Esc => {
-                    app.apply_filters();
                     app.input_mode = InputMode::Normal;
                 }
                 _ => {}
             },
             FilterFocus::Tags | FilterFocus::Repos => match key_code {
                 KeyCode::Char('q') => {
-                    app.apply_filters();
                     app.input_mode = InputMode::Normal;
                 }
                 KeyCode::Char('j') | KeyCode::Down => {
@@ -230,7 +228,6 @@ impl KeyEventHandler for FilterModalState {
                     }
                 }
                 KeyCode::Esc => {
-                    app.apply_filters();
                     app.input_mode = InputMode::Normal;
                 }
                 _ => {}
