@@ -9,7 +9,7 @@ use crate::{
     },
 };
 use backend::FilterState;
-use crossterm::event::KeyCode;
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
 use ratatui::widgets::ListState;
@@ -123,40 +123,59 @@ impl Default for FilterModalState {
 }
 
 impl KeyEventHandler for FilterModalState {
-    fn handle_key_event(&mut self, app: &mut App, key_code: KeyCode) -> io::Result<bool> {
+    fn handle_key_event(&mut self, app: &mut App, key: KeyEvent) -> io::Result<bool> {
         match self.focus {
-            FilterFocus::Search => match key_code {
-                KeyCode::Char(c) => {
-                    self.input.insert(self.cursor_position, c);
-                    self.cursor_position += 1;
-                    self.update_filtered_options(&app.state.all_tags, &app.state.all_repos);
+            FilterFocus::Search => {
+                // Handle modifier keys first
+                if key.modifiers == KeyModifiers::CONTROL {
+                    match key.code {
+                        // Ctrl + W or Ctrl + Backspace
+                        KeyCode::Char('w') | KeyCode::Backspace => {
+                            delete_word_backward(&mut self.input, &mut self.cursor_position);
+                            self.update_filtered_options(&app.state.all_tags, &app.state.all_repos);
+                            return Ok(false);
+                        }
+                        _ => {}
+                    }
                 }
-                KeyCode::Backspace => {
-                    if self.cursor_position > 0 {
-                        self.cursor_position -= 1;
-                        self.input.remove(self.cursor_position);
+
+                // Handle non-modifier keys
+                match key.code {
+                    KeyCode::Char(c) => {
+                        self.input.insert(self.cursor_position, c);
+                        self.cursor_position += 1;
                         self.update_filtered_options(&app.state.all_tags, &app.state.all_repos);
                     }
-                }
-                KeyCode::Left => {
-                    if self.cursor_position > 0 {
-                        self.cursor_position -= 1;
+                    KeyCode::Backspace => {
+                        if self.cursor_position > 0 {
+                            self.cursor_position -= 1;
+                            self.input.remove(self.cursor_position);
+                            self.update_filtered_options(
+                                &app.state.all_tags,
+                                &app.state.all_repos,
+                            );
+                        }
                     }
-                }
-                KeyCode::Right => {
-                    if self.cursor_position < self.input.len() {
-                        self.cursor_position += 1;
+                    KeyCode::Left => {
+                        if self.cursor_position > 0 {
+                            self.cursor_position -= 1;
+                        }
                     }
+                    KeyCode::Right => {
+                        if self.cursor_position < self.input.len() {
+                            self.cursor_position += 1;
+                        }
+                    }
+                    KeyCode::Tab => {
+                        self.focus = FilterFocus::Tags;
+                    }
+                    KeyCode::Esc => {
+                        app.input_mode = InputMode::Normal;
+                    }
+                    _ => {}
                 }
-                KeyCode::Tab => {
-                    self.focus = FilterFocus::Tags;
-                }
-                KeyCode::Esc => {
-                    app.input_mode = InputMode::Normal;
-                }
-                _ => {}
-            },
-            FilterFocus::Tags | FilterFocus::Repos => match key_code {
+            }
+            FilterFocus::Tags | FilterFocus::Repos => match key.code {
                 KeyCode::Char('q') => {
                     app.input_mode = InputMode::Normal;
                 }
@@ -235,4 +254,20 @@ impl KeyEventHandler for FilterModalState {
         }
         Ok(false)
     }
+}
+
+fn delete_word_backward(text: &mut String, cursor_pos: &mut usize) {
+    if *cursor_pos == 0 {
+        return;
+    }
+    let original_cursor_pos = *cursor_pos;
+    let text_before_cursor = &text[..original_cursor_pos];
+
+    let new_cursor_pos = text_before_cursor
+        .trim_end()
+        .rfind(' ')
+        .map_or(0, |i| i + 1);
+
+    text.drain(new_cursor_pos..original_cursor_pos);
+    *cursor_pos = new_cursor_pos;
 }

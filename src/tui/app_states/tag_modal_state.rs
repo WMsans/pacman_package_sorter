@@ -5,7 +5,7 @@ use crate::{
         app_states::{app_state::InputMode, state::KeyEventHandler, app_state::TagModalFocus},
     },
 };
-use crossterm::event::KeyCode;
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
 use ratatui::widgets::ListState;
@@ -121,8 +121,8 @@ impl Default for TagModalState {
     }
 }
 impl KeyEventHandler for TagModalState {
-    fn handle_key_event(&mut self, app: &mut App, key_code: KeyCode) -> io::Result<bool> {
-        match key_code {
+    fn handle_key_event(&mut self, app: &mut App, key: KeyEvent) -> io::Result<bool> {
+        match key.code {
             KeyCode::Enter => {
                 if let Some(selected_index) = app.selected_package.selected() {
                     if let Some(selected_pkg_name) =
@@ -178,21 +178,37 @@ impl KeyEventHandler for TagModalState {
             }
             _ => {
                 match self.focus {
-                    TagModalFocus::Input => match key_code {
-                        KeyCode::Char(c) => {
-                            self.input.push(c);
-                            self.update_tags_from_current_mode(app);
+                    TagModalFocus::Input => {
+                        // Handle modifier keys first
+                        if key.modifiers == KeyModifiers::CONTROL {
+                            match key.code {
+                                // Ctrl + W or Ctrl + Backspace
+                                KeyCode::Char('w') | KeyCode::Backspace => {
+                                    delete_word_backward(&mut self.input);
+                                    self.update_tags_from_current_mode(app);
+                                    return Ok(false);
+                                }
+                                _ => {}
+                            }
                         }
-                        KeyCode::Backspace => {
-                            self.input.pop();
-                            self.update_tags_from_current_mode(app);
+
+                        // Handle non-modifier keys
+                        match key.code {
+                            KeyCode::Char(c) => {
+                                self.input.push(c);
+                                self.update_tags_from_current_mode(app);
+                            }
+                            KeyCode::Backspace => {
+                                self.input.pop();
+                                self.update_tags_from_current_mode(app);
+                            }
+                            KeyCode::Tab => {
+                                self.focus = TagModalFocus::List;
+                            }
+                            _ => {}
                         }
-                        KeyCode::Tab => {
-                            self.focus = TagModalFocus::List;
-                        }
-                        _ => {}
-                    },
-                    TagModalFocus::List => match key_code {
+                    }
+                    TagModalFocus::List => match key.code {
                         KeyCode::Char('q') => {
                             self.input.clear();
                             self.update_filtered_tags(&app.state.all_tags);
@@ -212,4 +228,18 @@ impl KeyEventHandler for TagModalState {
         }
         Ok(false)
     }
+}
+fn delete_word_backward(text: &mut String) {
+    let original_len = text.len();
+    if original_len == 0 {
+        return;
+    }
+    // Find the length after trimming trailing spaces
+    let trimmed_len = text.trim_end().len();
+    // Find the last space in the trimmed string
+    let new_len = text[..trimmed_len]
+        .rfind(' ')
+        .map_or(0, |i| i + 1); // +1 to be after the space, or 0
+    
+    text.truncate(new_len);
 }

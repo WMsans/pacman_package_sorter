@@ -2,15 +2,15 @@ use crate::tui::app::App;
 use crate::tui::app_states::app_state::InputMode;
 use crate::tui::app_states::state::KeyEventHandler;
 use crate::tui::app_states::app_state::TagModalFocus;
-use crossterm::event::KeyCode;
+use crossterm::event::{KeyCode, KeyEvent};
 use std::io;
 
 #[derive(Clone, Copy)]
 pub struct NormalState;
 
 impl KeyEventHandler for NormalState {
-    fn handle_key_event(&mut self, app: &mut App, key_code: KeyCode) -> io::Result<bool> {
-        match key_code {
+    fn handle_key_event(&mut self, app: &mut App, key: KeyEvent) -> io::Result<bool> {
+        match key.code {
             KeyCode::Char('q') => return Ok(true),
             KeyCode::Up | KeyCode::Char('k') => app.select_previous_package(),
             KeyCode::Down | KeyCode::Char('j') => app.select_next_package(),

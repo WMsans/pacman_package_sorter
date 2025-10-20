@@ -5,7 +5,7 @@ use crate::{
         app_states::{app_state::InputMode, state::KeyEventHandler},
     },
 };
-use crossterm::event::KeyCode;
+use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::widgets::ListState;
 use std::io;
 
@@ -76,8 +76,8 @@ impl Default for ShowModeState {
 }
 
 impl KeyEventHandler for ShowModeState {
-    fn handle_key_event(&mut self, app: &mut App, key_code: KeyCode) -> io::Result<bool> {
-        match key_code {
+    fn handle_key_event(&mut self, app: &mut App, key: KeyEvent) -> io::Result<bool> {
+        match key.code {
             KeyCode::Up | KeyCode::Char('k') => self.select_previous(),
             KeyCode::Down | KeyCode::Char('j') => self.select_next(),
             KeyCode::Enter => {
