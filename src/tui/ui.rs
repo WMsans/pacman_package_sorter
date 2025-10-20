@@ -171,7 +171,7 @@ fn render_sorting(frame: &mut Frame, area: Rect, app: &App) {
 fn render_actions(frame: &mut Frame, area: Rect, app: &App) {
     let block = Block::default().title("Actions (?)").borders(Borders::ALL);
     let text = match app.input_mode {
-        InputMode::Normal => "Actions:\n- (a)dd tag\n- (d)elete tag",
+        InputMode::Normal => "Actions:\n- (a)dd tag\n- (d)elete tag\n- (?) all actions",
         InputMode::Tagging => "Enter tag to add, then press Enter",
         InputMode::Untagging => "Enter tag to remove, then press Enter",
         _ => "",

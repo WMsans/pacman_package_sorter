@@ -1,8 +1,9 @@
+use crate::packages::models::ShowMode; 
 use crate::tui::app::App;
-use crate::tui::app_states::app_state::{InputMode, ActionModalFocus};
+use crate::tui::app_states::app_state::{ActionModalFocus, InputMode};
 use crate::tui::app_states::state::KeyEventHandler;
 use crate::tui::app_states::app_state::TagModalFocus;
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers}; 
 use std::io;
 
 #[derive(Clone, Copy)]
@@ -10,6 +11,22 @@ pub struct NormalState;
 
 impl KeyEventHandler for NormalState {
     fn handle_key_event(&mut self, app: &mut App, key: KeyEvent) -> io::Result<bool> {
+
+        if key.modifiers == KeyModifiers::SHIFT {
+            match key.code {
+                KeyCode::Char('S') => {
+                    app.command_to_run =
+                        Some(vec!["sudo".to_string(), "pacman".to_string(), "-Syu".to_string()]);
+                    return Ok(true);
+                }
+                KeyCode::Char('Y') => {
+                    app.command_to_run = Some(vec!["yay".to_string(), "-Syu".to_string()]);
+                    return Ok(true);
+                }
+                _ => {}
+            }
+        }
+
         match key.code {
             KeyCode::Char('q') => return Ok(true),
             KeyCode::Up | KeyCode::Char('k') => app.select_previous_package(),
@@ -43,29 +60,87 @@ impl KeyEventHandler for NormalState {
                     app.state
                         .filtered_packages
                         .get(selected_index)
-                        .map(|p| p.tags.clone()) // Get the tags
-                        .unwrap_or_default() // Or an empty vec
+                        .map(|p| p.tags.clone()) 
+                        .unwrap_or_default() 
                 } else {
                     Vec::new() 
                 };
 
-                // Only enter untagging mode if there are tags to remove
                 if !package_tags.is_empty() {
                     app.input_mode = InputMode::Untagging;
-                    app.tag_state.update_filtered_tags(&package_tags); // Use package's tags
+                    app.tag_state.update_filtered_tags(&package_tags); 
                     app.tag_state.selection.select(Some(0));
-                    app.tag_state.input.clear(); // --- MODIFIED ---
+                    app.tag_state.input.clear(); 
                     app.tag_state.focus = TagModalFocus::Input;
                 } else {
                     app.output
                         .push("Selected package has no tags to remove.".to_string());
                 }
             }
+
+            KeyCode::Char('i') => {
+                if let Some(pkg_idx) = app.selected_package.selected() {
+                    if let Some(package) = app.state.filtered_packages.get(pkg_idx) {
+                        if app.show_mode_state.active_show_mode == ShowMode::AllAvailable {
+                            app.command_to_run = Some(vec![
+                                "sudo".to_string(),
+                                "pacman".to_string(),
+                                "-S".to_string(),
+                                package.name.clone(),
+                            ]);
+                            return Ok(true);
+                        } else {
+                            app.output.push(
+                                "Can only install packages from 'All Available' mode (press 'v')."
+                                    .to_string(),
+                            );
+                        }
+                    } else {
+                        app.output.push("No package selected.".to_string());
+                    }
+                } else {
+                    app.output.push("No package selected.".to_string());
+                }
+            }
+
+            KeyCode::Char('u') => {
+                if let Some(pkg_idx) = app.selected_package.selected() {
+                    if let Some(package) = app.state.filtered_packages.get(pkg_idx) {
+                        if app.show_mode_state.active_show_mode != ShowMode::AllAvailable {
+                            app.command_to_run = Some(vec![
+                                "sudo".to_string(),
+                                "pacman".to_string(),
+                                "-Rns".to_string(),
+                                package.name.clone(),
+                            ]);
+                            return Ok(true);
+                        } else {
+                            app.output
+                                .push("Cannot uninstall from 'All Available' mode.".to_string());
+                        }
+                    } else {
+                        app.output.push("No package selected.".to_string());
+                    }
+                } else {
+                    app.output.push("No package selected.".to_string());
+                }
+            }
+
+            KeyCode::Char('o') => {
+                app.command_to_run = Some(vec![
+                    "sudo".to_string(),
+                    "sh".to_string(),
+                    "-c".to_string(),
+                    "pacman -Rns $(pacman -Qdtq)".to_string(),
+                ]);
+                return Ok(true);
+            }
+
             KeyCode::Char('?') => {
                 app.input_mode = InputMode::Action;
-                // Reset its state every time it's opened
+
                 app.action_state.input.clear();
-                app.action_state.update_filtered_options(); // Use the default options
+                app.action_state.update_filtered_options(); 
                 app.action_state.selection.select(Some(0));
                 app.action_state.focus = ActionModalFocus::Input;
             }

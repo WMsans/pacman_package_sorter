@@ -6,14 +6,14 @@ use ratatui::widgets::ListState;
 use ratatui::Terminal;
 use std::io::Stdout;
 
-use crate::packages::models::ShowMode; 
+use crate::packages::models::ShowMode;
 use crate::tui::app_states::{
     app_state::{AppState, InputMode},
     filter_modal_state::FilterModalState,
     normal_state::NormalState,
     action_modal_state::ActionModalState,
     search_state::SearchState,
-    show_mode_state::ShowModeState, 
+    show_mode_state::ShowModeState,
     sort_state::SortState,
     tag_modal_state::TagModalState,
 };
@@ -28,10 +28,11 @@ pub struct App {
     pub input_mode: InputMode,
     pub output: Vec<String>,
     pub action_state: ActionModalState,
+    pub command_to_run: Option<Vec<String>>, // --- ADDED ---
 
     // Search
-    pub search_input: String, 
-    pub search_cursor_position: usize, 
+    pub search_input: String,
+    pub search_cursor_position: usize,
 
     // UI states
     pub sort_state: SortState,
@@ -39,7 +40,7 @@ pub struct App {
     pub tag_state: TagModalState,
     pub normal_state: NormalState,
     pub search_state: SearchState,
-    pub show_mode_state: ShowModeState, 
+    pub show_mode_state: ShowModeState,
 }
 
 impl App {
@@ -48,7 +49,7 @@ impl App {
         let sort_state = SortState::new();
         let filter_state = FilterModalState::new(&state.all_tags, &state.all_repos);
         let tag_state = TagModalState::new(&state.all_tags);
-        let show_mode_state = ShowModeState::new(); 
+        let show_mode_state = ShowModeState::new();
         let action_state = ActionModalState::new();
 
         App {
@@ -56,14 +57,15 @@ impl App {
             selected_package: ListState::default(),
             input_mode: InputMode::Normal,
             output: Vec::new(),
-            search_input: String::new(), 
-            search_cursor_position: 0, 
+            command_to_run: None, // --- ADDED ---
+            search_input: String::new(),
+            search_cursor_position: 0,
             sort_state,
             filter_state,
             tag_state,
             normal_state: NormalState,
             search_state: SearchState,
-            show_mode_state, 
+            show_mode_state,
             action_state,
         }
     }
@@ -72,25 +74,14 @@ impl App {
         &mut self,
         terminal: &mut Terminal<CrosstermBackend<Stdout>>,
     ) -> std::io::Result<()> {
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(async {
-            self.state.load_packages().await;
-        });
-
-        // Initialize filter and tag states with loaded data
-        self.filter_state = FilterModalState::new(&self.state.all_tags, &self.state.all_repos);
-        self.tag_state = TagModalState::new(&self.state.all_tags);
-
-        self.apply_filters();
-
-        if !self.state.filtered_packages.is_empty() {
-            self.selected_package.select(Some(0));
-        }
+        // --- MODIFIED ---
+        // Data loading logic was moved to `src/tui/mod.rs`'s `run_tui` function
+        // to support reloading after external commands.
 
         loop {
             terminal.draw(|f| ui::ui(f, self))?;
             if handle_events(self)? {
-                break;
+                break; // Exit the loop (and the function)
             }
         }
         Ok(())
