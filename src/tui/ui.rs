@@ -1,6 +1,6 @@
 use crate::tui::app::{App};
 use crate::backend::FilterState;
-use crate::tui::app_states::app_state::{FilterFocus, InputMode, TagModalFocus};
+use crate::tui::app_states::app_state::{ActionModalFocus, FilterFocus, InputMode, TagModalFocus};
 use ratatui::layout::Position;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Margin, Rect},
@@ -68,6 +68,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         InputMode::Sorting => render_sort_modal(frame, app),
         InputMode::Filtering => render_filter_modal(frame, app),
         InputMode::Showing => render_show_mode_modal(frame, app),
+        InputMode::Action => render_action_modal(frame, app),
         _ => {}
     }
 }
@@ -168,7 +169,7 @@ fn render_sorting(frame: &mut Frame, area: Rect, app: &App) {
 }
 
 fn render_actions(frame: &mut Frame, area: Rect, app: &App) {
-    let block = Block::default().title("Actions").borders(Borders::ALL);
+    let block = Block::default().title("Actions (?)").borders(Borders::ALL);
     let text = match app.input_mode {
         InputMode::Normal => "Actions:\n- (a)dd tag\n- (d)elete tag",
         InputMode::Tagging => "Enter tag to add, then press Enter",
@@ -428,4 +429,49 @@ fn render_search_bar(frame: &mut Frame, area: Rect, app: &App) {
             y: area.y + 1,
         });
     }
+}
+fn render_action_modal(frame: &mut Frame, app: &mut App) {
+    let area = centered_rect(60, 50, frame.area());
+    let title = "Actions";
+    let block = Block::default().title(title).borders(Borders::ALL);
+
+    frame.render_widget(Clear, area);
+    frame.render_widget(block, area);
+
+    let modal_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .margin(1)
+        .constraints(
+            [
+                Constraint::Length(3), // Input
+                Constraint::Min(0),    // List
+            ]
+            .as_ref(),
+        )
+        .split(area);
+
+    let input = Paragraph::new(app.action_state.input.as_str())
+        .style(Style::default().fg(Color::Yellow))
+        .block(Block::default().borders(Borders::ALL).title("Search").border_style(match app.action_state.focus {
+                    ActionModalFocus::Input => Style::default().fg(Color::Yellow),
+                    _ => Style::default(),
+                }),);
+    frame.render_widget(input, modal_layout[0]);
+
+    let action_items: Vec<ListItem> = app.action_state.filtered_options.iter().map(|t| ListItem::new(t.clone())).collect();
+
+    let actions_list = List::new(action_items)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Options")
+                .border_style(match app.action_state.focus {
+                    ActionModalFocus::List => Style::default().fg(Color::Yellow),
+                    _ => Style::default(),
+                }),
+        )
+        .highlight_style(Style::default().add_modifier(Modifier::BOLD).bg(Color::DarkGray))
+        .highlight_symbol("> ");
+
+    frame.render_stateful_widget(actions_list, modal_layout[1], &mut app.action_state.selection);
 }

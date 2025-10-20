@@ -11,6 +11,7 @@ use crate::tui::app_states::{
     app_state::{AppState, InputMode},
     filter_modal_state::FilterModalState,
     normal_state::NormalState,
+    action_modal_state::ActionModalState,
     search_state::SearchState,
     show_mode_state::ShowModeState, 
     sort_state::SortState,
@@ -26,8 +27,7 @@ pub struct App {
     pub selected_package: ListState,
     pub input_mode: InputMode,
     pub output: Vec<String>,
-    // pub show_explicit: bool,
-    // pub show_dependency: bool,
+    pub action_state: ActionModalState,
 
     // Search
     pub search_input: String, 
@@ -49,6 +49,7 @@ impl App {
         let filter_state = FilterModalState::new(&state.all_tags, &state.all_repos);
         let tag_state = TagModalState::new(&state.all_tags);
         let show_mode_state = ShowModeState::new(); 
+        let action_state = ActionModalState::new();
 
         App {
             state,
@@ -63,6 +64,7 @@ impl App {
             normal_state: NormalState,
             search_state: SearchState,
             show_mode_state, 
+            action_state,
         }
     }
 

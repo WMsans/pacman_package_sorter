@@ -1,5 +1,5 @@
 use crate::tui::app::App;
-use crate::tui::app_states::app_state::InputMode;
+use crate::tui::app_states::app_state::{InputMode, ActionModalFocus};
 use crate::tui::app_states::state::KeyEventHandler;
 use crate::tui::app_states::app_state::TagModalFocus;
 use crossterm::event::{KeyCode, KeyEvent};
@@ -60,6 +60,14 @@ impl KeyEventHandler for NormalState {
                     app.output
                         .push("Selected package has no tags to remove.".to_string());
                 }
+            }
+            KeyCode::Char('?') => {
+                app.input_mode = InputMode::Action;
+                // Reset its state every time it's opened
+                app.action_state.input.clear();
+                app.action_state.update_filtered_options(); // Use the default options
+                app.action_state.selection.select(Some(0));
+                app.action_state.focus = ActionModalFocus::Input;
             }
             _ => {}
         }

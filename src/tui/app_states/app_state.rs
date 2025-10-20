@@ -13,6 +13,12 @@ pub enum InputMode {
     Filtering,
     Searching,
     Showing, 
+    Action,
+}
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum ActionModalFocus{
+    Input,
+    List,
 }
 
 pub enum FilterFocus {
