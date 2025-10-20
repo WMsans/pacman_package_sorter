@@ -1,6 +1,6 @@
 use crate::{
-    backend, db,
-    packages::{models::{Package}, pacman}, 
+    db,
+    packages::{models::{Package}}, 
 };
 
 // --- Enums for application state ---
@@ -32,7 +32,12 @@ pub enum TagModalFocus {
     List,
 }
 // --- State Management Structs ---
-
+pub struct LoadedData {
+    pub packages: Vec<Package>,
+    pub available_packages: Vec<Package>, 
+    pub all_repos: Vec<String>,
+    pub orphan_package_names: Vec<String>, 
+}
 /// Holds the core data of the application
 pub struct AppState {
     pub packages: Vec<Package>,
@@ -53,19 +58,5 @@ impl AppState {
             all_repos: Vec::new(),
             orphan_package_names: Vec::new(), 
         }
-    }
-
-    /// Reloads packages and repos from the backend.
-    pub async fn load_packages(&mut self) {
-        self.packages = crate::packages::pacman::get_all_packages()
-            .await
-            .unwrap_or_default();
-        
-        self.available_packages = pacman::get_all_available_packages().unwrap_or_default();
-        
-        // Use the more complete list of available packages to build the repo list
-        self.all_repos = backend::get_all_repos(&self.available_packages);
-        
-        self.orphan_package_names = pacman::get_orphan_package_names().unwrap_or_default(); 
     }
 }

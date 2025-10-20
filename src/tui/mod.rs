@@ -5,32 +5,43 @@ mod terminal;
 mod ui;
 
 use crate::error::AppError;
-use crate::tui::app_states::{filter_modal_state::FilterModalState, tag_modal_state::TagModalState}; 
+use crate::tui::app_states::
+    app_state::LoadedData
+;
 use app::App;
-use std::process::Command; 
 use terminal::{init_terminal, restore_terminal};
 
-pub fn run_tui() -> Result<(), AppError> {
+use tokio::sync::mpsc;
 
-    let mut app = App::new();
+pub async fn run_tui() -> Result<(), AppError> {
+
+    let mut app;
 
     loop {
+        let (tx, rx) = mpsc::channel(1);
+        app = App::new(rx);
 
         let mut terminal = init_terminal()?;
 
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(async {
-            app.state.load_packages().await;
+        tokio::spawn(async move {
+            let packages = crate::packages::pacman::get_all_packages()
+                .await
+                .unwrap_or_default();
+            let available_packages =
+                crate::packages::pacman::get_all_available_packages().unwrap_or_default();
+            let all_repos = crate::backend::get_all_repos(&available_packages);
+            let orphan_package_names =
+                crate::packages::pacman::get_orphan_package_names().unwrap_or_default();
+
+            let loaded_data = LoadedData {
+                packages,
+                available_packages,
+                all_repos,
+                orphan_package_names,
+            };
+            // Send data to the main loop
+            let _ = tx.send(loaded_data).await;
         });
-
-        app.filter_state = FilterModalState::new(&app.state.all_tags, &app.state.all_repos);
-        app.tag_state = TagModalState::new(&app.state.all_tags);
-
-        app.apply_filters();
-
-        if !app.state.filtered_packages.is_empty() {
-            app.selected_package.select(Some(0));
-        }
 
         app.run(&mut terminal)?;
 
@@ -42,21 +53,22 @@ pub fn run_tui() -> Result<(), AppError> {
             }
 
             println!("Running command: {:?}", command_parts.join(" "));
-            let mut command = Command::new(&command_parts[0]);
+            let mut command = tokio::process::Command::new(&command_parts[0]);
             if command_parts.len() > 1 {
                 command.args(&command_parts[1..]);
             }
 
-            let status = command
-                .status()
-                .map_err(|e| AppError::Io(e))?;
+            let status = command.status().await.map_err(|e| AppError::Io(e))?;
 
             if !status.success() {
                 eprintln!("\nCommand failed: {:?}", command_parts);
             }
 
             println!("\nCommand finished. Press Enter to continue...");
-            std::io::stdin().read_line(&mut String::new())?;
+            use tokio::io::{AsyncBufReadExt, BufReader};
+            let mut stdin = BufReader::new(tokio::io::stdin());
+            let mut buf = String::new();
+            stdin.read_line(&mut buf).await?;
 
         } else {
 

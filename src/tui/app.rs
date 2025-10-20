@@ -5,10 +5,11 @@ use ratatui::prelude::*;
 use ratatui::widgets::ListState;
 use ratatui::Terminal;
 use std::io::Stdout;
+use tokio::sync::mpsc; 
 
 use crate::packages::models::ShowMode;
 use crate::tui::app_states::{
-    app_state::{AppState, InputMode},
+    app_state::{AppState, InputMode, LoadedData},
     filter_modal_state::FilterModalState,
     normal_state::NormalState,
     action_modal_state::ActionModalState,
@@ -28,7 +29,7 @@ pub struct App {
     pub input_mode: InputMode,
     pub output: Vec<String>,
     pub action_state: ActionModalState,
-    pub command_to_run: Option<Vec<String>>, // --- ADDED ---
+    pub command_to_run: Option<Vec<String>>, 
 
     // Search
     pub search_input: String,
@@ -41,10 +42,13 @@ pub struct App {
     pub normal_state: NormalState,
     pub search_state: SearchState,
     pub show_mode_state: ShowModeState,
+
+    pub data_receiver: mpsc::Receiver<LoadedData>,
+    pub is_loading: bool,
 }
 
 impl App {
-    pub fn new() -> Self {
+    pub fn new(rx: mpsc::Receiver<LoadedData>) -> Self {
         let state = AppState::new();
         let sort_state = SortState::new();
         let filter_state = FilterModalState::new(&state.all_tags, &state.all_repos);
@@ -57,7 +61,7 @@ impl App {
             selected_package: ListState::default(),
             input_mode: InputMode::Normal,
             output: Vec::new(),
-            command_to_run: None, // --- ADDED ---
+            command_to_run: None,
             search_input: String::new(),
             search_cursor_position: 0,
             sort_state,
@@ -67,6 +71,8 @@ impl App {
             search_state: SearchState,
             show_mode_state,
             action_state,
+            data_receiver: rx,
+            is_loading: true,
         }
     }
 
@@ -74,12 +80,34 @@ impl App {
         &mut self,
         terminal: &mut Terminal<CrosstermBackend<Stdout>>,
     ) -> std::io::Result<()> {
-        // --- MODIFIED ---
-        // Data loading logic was moved to `src/tui/mod.rs`'s `run_tui` function
-        // to support reloading after external commands.
-
+        
         loop {
+            // On each loop, check if we are still loading
+            if self.is_loading {
+                // Try to receive data from the channel non-blockingly
+                if let Ok(loaded_data) = self.data_receiver.try_recv() {
+                    // If we get data, update the app state
+                    self.state.packages = loaded_data.packages;
+                    self.state.available_packages = loaded_data.available_packages;
+                    self.state.all_repos = loaded_data.all_repos;
+                    self.state.orphan_package_names = loaded_data.orphan_package_names;
+                    
+                    // Reload tags from DB
+                    self.reload_tags(); 
+                    
+                    // Update filter and tag states with the new data
+                    self.filter_state = FilterModalState::new(&self.state.all_tags, &self.state.all_repos);
+                    self.tag_state = TagModalState::new(&self.state.all_tags);
+
+                    // We are no longer loading
+                    self.is_loading = false;
+                    self.apply_filters(); // Apply initial filters/sort to show the list
+                }
+            }
+
             terminal.draw(|f| ui::ui(f, self))?;
+            
+            // handle_events is now non-blocking, so this loop will spin
             if handle_events(self)? {
                 break; // Exit the loop (and the function)
             }

@@ -80,8 +80,14 @@ fn render_package_list(frame: &mut Frame, area: Rect, app: &mut App) {
         .map(|p| ListItem::new(p.name.clone()))
         .collect();
 
+    let title = if app.is_loading {
+        "Packages (Loading...)"
+    } else {
+        "Packages"
+    };
+
     let list = List::new(items)
-        .block(Block::default().borders(Borders::ALL).title("Packages"))
+        .block(Block::default().borders(Borders::ALL).title(title)) // --- MODIFIED ---
         .highlight_style(Style::default().add_modifier(Modifier::BOLD))
         .highlight_symbol("> ");
 

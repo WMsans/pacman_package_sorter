@@ -1,11 +1,14 @@
 use crate::tui::app::App;
 use crate::tui::app_states::app_state::InputMode;
 use crate::tui::app_states::state::KeyEventHandler;
-use crossterm::event::{self, Event}; 
-use std::time::Duration;
+use crossterm::event::{self, Event};
+use std::time::Duration; // Import Duration
 
 pub fn handle_events(app: &mut App) -> std::io::Result<bool> {
-    if event::poll(Duration::from_millis(250))? {
+    
+    // Poll for an event with a short timeout
+    if event::poll(Duration::from_millis(100))? {
+        // If poll is true, an event is available, so we read it
         if let Event::Key(key) = event::read()? { // 'key' is the full KeyEvent
             let should_quit = match app.input_mode {
                 InputMode::Normal => {
@@ -78,5 +81,6 @@ pub fn handle_events(app: &mut App) -> std::io::Result<bool> {
             }
         }
     }
+    // If poll is false (no event), just return Ok(false) to continue the loop
     Ok(false)
 }
