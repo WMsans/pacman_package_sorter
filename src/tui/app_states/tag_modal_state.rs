@@ -183,7 +183,7 @@ impl KeyEventHandler for TagModalState {
                         if key.modifiers == KeyModifiers::CONTROL {
                             match key.code {
                                 // Ctrl + W or Ctrl + Backspace
-                                KeyCode::Char('w') | KeyCode::Backspace => {
+                                KeyCode::Char('w') | KeyCode::Char('h') => {
                                     delete_word_backward(&mut self.input);
                                     self.update_tags_from_current_mode(app);
                                     return Ok(false);

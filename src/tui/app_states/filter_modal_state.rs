@@ -130,7 +130,7 @@ impl KeyEventHandler for FilterModalState {
                 if key.modifiers == KeyModifiers::CONTROL {
                     match key.code {
                         // Ctrl + W or Ctrl + Backspace
-                        KeyCode::Char('w') | KeyCode::Backspace => {
+                        KeyCode::Char('w') | KeyCode::Char('h') => {
                             delete_word_backward(&mut self.input, &mut self.cursor_position);
                             self.update_filtered_options(&app.state.all_tags, &app.state.all_repos);
                             return Ok(false);

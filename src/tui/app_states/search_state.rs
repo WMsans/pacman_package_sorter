@@ -31,7 +31,7 @@ impl KeyEventHandler for SearchState {
         if key.modifiers == KeyModifiers::CONTROL {
             match key.code {
                 // Ctrl + W or Ctrl + Backspace
-                KeyCode::Char('w') | KeyCode::Backspace => {
+                KeyCode::Char('w') | KeyCode::Char('h') => {
                     delete_word_backward(&mut app.search_input, &mut app.search_cursor_position);
                     app.apply_filters();
                     return Ok(false);
