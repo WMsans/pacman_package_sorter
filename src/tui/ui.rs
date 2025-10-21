@@ -464,12 +464,27 @@ fn render_action_modal(frame: &mut Frame, app: &mut App) {
                 }),);
     frame.render_widget(input, modal_layout[0]);
 
-    // --- MODIFIED: Read `action.name` from the struct ---
+    // --- MODIFIED: Create display text with hotkey ---
     let action_items: Vec<ListItem> = app
         .action_state
         .filtered_options
         .iter()
-        .map(|a| ListItem::new(a.name.clone())) // <-- Get name from Action struct
+        .map(|a| {
+            let name = &a.name;
+            let key = a.key.key;
+            let shift = a.key.shift;
+
+            // Format the hotkey string
+            let hotkey_str = if shift {
+                format!("Shift+{}", key)
+            } else {
+                key.to_string()
+            };
+            
+            // Combine name and hotkey
+            let display_text = format!("{} ({})", name, hotkey_str);
+            ListItem::new(display_text)
+        })
         .collect();
     // ---
 
