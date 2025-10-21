@@ -464,7 +464,14 @@ fn render_action_modal(frame: &mut Frame, app: &mut App) {
                 }),);
     frame.render_widget(input, modal_layout[0]);
 
-    let action_items: Vec<ListItem> = app.action_state.filtered_options.iter().map(|t| ListItem::new(t.clone())).collect();
+    // --- MODIFIED: Read `action.name` from the struct ---
+    let action_items: Vec<ListItem> = app
+        .action_state
+        .filtered_options
+        .iter()
+        .map(|a| ListItem::new(a.name.clone())) // <-- Get name from Action struct
+        .collect();
+    // ---
 
     let actions_list = List::new(action_items)
         .block(

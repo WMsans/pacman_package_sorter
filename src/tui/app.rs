@@ -1,11 +1,11 @@
-use crate::{backend, db};
+use crate::{backend, config, db}; 
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
 use ratatui::prelude::*;
 use ratatui::widgets::ListState;
 use ratatui::Terminal;
 use std::io::Stdout;
-use tokio::sync::mpsc; 
+use tokio::sync::mpsc;
 
 use crate::packages::models::ShowMode;
 use crate::tui::app_states::{
@@ -29,7 +29,8 @@ pub struct App {
     pub input_mode: InputMode,
     pub output: Vec<String>,
     pub action_state: ActionModalState,
-    pub command_to_run: Option<Vec<String>>, 
+    pub command_to_run: Option<Vec<String>>,
+    pub config: config::Config, // <-- ADD THIS
 
     // Search
     pub search_input: String,
@@ -55,6 +56,7 @@ impl App {
         let tag_state = TagModalState::new(&state.all_tags);
         let show_mode_state = ShowModeState::new();
         let action_state = ActionModalState::new();
+        let config = config::load_config(); // <-- ADD THIS
 
         App {
             state,
@@ -62,6 +64,7 @@ impl App {
             input_mode: InputMode::Normal,
             output: Vec::new(),
             command_to_run: None,
+            config, // <-- ADD THIS
             search_input: String::new(),
             search_cursor_position: 0,
             sort_state,
@@ -74,6 +77,81 @@ impl App {
             data_receiver: rx,
             is_loading: true,
         }
+    }
+
+    /// ADD THIS ENTIRE HELPER FUNCTION
+    ///
+    /// Executes a command action from the config, performing all
+    /// necessary checks.
+    /// Returns `true` if the TUI should quit to run the command.
+    pub fn execute_config_action(&mut self, action: &crate::config::Action) -> bool {
+        let (command_template, requires_package, show_mode_whitelist, show_mode_blacklist) =
+            match &action.action_type {
+                crate::config::ActionType::Command {
+                    command,
+                    requires_package,
+                    show_mode_whitelist,
+                    show_mode_blacklist,
+                } => (
+                    command,
+                    requires_package,
+                    show_mode_whitelist,
+                    show_mode_blacklist,
+                ),
+                _ => return false, // Not a command action
+            };
+
+        // Check whitelist
+        if !show_mode_whitelist.is_empty() {
+            let current_mode_str = self.show_mode_state.active_show_mode.to_string();
+            if !show_mode_whitelist.contains(&current_mode_str) {
+                self.output.push(format!(
+                    "Action '{}' can only be run in modes: {}",
+                    action.name,
+                    show_mode_whitelist.join(", ")
+                ));
+                self.input_mode = InputMode::Normal; // Ensure modal closes
+                return false;
+            }
+        }
+
+        // Check blacklist
+        if !show_mode_blacklist.is_empty() {
+            let current_mode_str = self.show_mode_state.active_show_mode.to_string();
+            if show_mode_blacklist.contains(&current_mode_str) {
+                self.output.push(format!(
+                    "Action '{}' cannot be run in mode: {}",
+                    action.name, current_mode_str
+                ));
+                self.input_mode = InputMode::Normal;
+                return false;
+            }
+        }
+
+        let mut package_name: Option<String> = None;
+        if *requires_package {
+            if let Some(selected_index) = self.selected_package.selected() {
+                if let Some(package) = self.state.filtered_packages.get(selected_index) {
+                    package_name = Some(package.name.clone());
+                }
+            }
+
+            if package_name.is_none() {
+                self.output.push(format!(
+                    "Action '{}' requires a selected package.",
+                    action.name
+                ));
+                self.input_mode = InputMode::Normal;
+                return false;
+            }
+        }
+
+        let final_command =
+            crate::config::template_command(command_template, package_name.as_deref())
+                .unwrap_or_default();
+
+        self.command_to_run = Some(final_command);
+        true // Quit TUI to run command
     }
 
     pub fn run(

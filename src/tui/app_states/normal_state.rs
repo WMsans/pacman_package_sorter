@@ -1,4 +1,3 @@
-use crate::packages::models::ShowMode; 
 use crate::tui::app::App;
 use crate::tui::app_states::app_state::{ActionModalFocus, InputMode};
 use crate::tui::app_states::state::KeyEventHandler;
@@ -11,18 +10,39 @@ pub struct NormalState;
 
 impl KeyEventHandler for NormalState {
     fn handle_key_event(&mut self, app: &mut App, key: KeyEvent) -> io::Result<bool> {
+        
+        // --- NEW: Handle dynamic actions from config ---
+        let (key_char, shift) = match key.code {
+            KeyCode::Char(c) => (c, key.modifiers == KeyModifiers::SHIFT),
+            _ => ('\0', false), // Not a char, not a config hotkey
+        };
 
+        if key_char != '\0' {
+            // Clone to avoid borrow checker issues with `app.execute_config_action`
+            for action in app.config.actions.clone() {
+                if action.key.key == key_char && action.key.shift == shift {
+                    // Matched a hotkey!
+                    // Check if it's a Command action
+                    if let crate::config::ActionType::Command { .. } = action.action_type {
+                        // app.execute_config_action handles all checks and returns `true`
+                        // if we should quit.
+                        return Ok(app.execute_config_action(&action));
+                    }
+                    // Local actions (Add/Remove Tag) are not triggered from here.
+                    // The 'a' and 'd' keys are handled below as they are special.
+                }
+            }
+        }
+        // --- End new action handler ---
+
+        // --- Old handler, with command keys (S, Y, i, u, o) removed ---
+        
+        // This block is now empty, but we'll keep it in case you want to
+        // add other non-configurable shift-modified keys.
         if key.modifiers == KeyModifiers::SHIFT {
             match key.code {
-                KeyCode::Char('S') => {
-                    app.command_to_run =
-                        Some(vec!["sudo".to_string(), "pacman".to_string(), "-Syu".to_string()]);
-                    return Ok(true);
-                }
-                KeyCode::Char('Y') => {
-                    app.command_to_run = Some(vec!["yay".to_string(), "-Syu".to_string()]);
-                    return Ok(true);
-                }
+                // KeyCode::Char('S') => { ... } // REMOVED
+                // KeyCode::Char('Y') => { ... } // REMOVED
                 _ => {}
             }
         }
@@ -78,66 +98,16 @@ impl KeyEventHandler for NormalState {
                 }
             }
 
-            KeyCode::Char('i') => {
-                if let Some(pkg_idx) = app.selected_package.selected() {
-                    if let Some(package) = app.state.filtered_packages.get(pkg_idx) {
-                        if app.show_mode_state.active_show_mode == ShowMode::AllAvailable {
-                            app.command_to_run = Some(vec![
-                                "sudo".to_string(),
-                                "pacman".to_string(),
-                                "-S".to_string(),
-                                package.name.clone(),
-                            ]);
-                            return Ok(true);
-                        } else {
-                            app.output.push(
-                                "Can only install packages from 'All Available' mode (press 'v')."
-                                    .to_string(),
-                            );
-                        }
-                    } else {
-                        app.output.push("No package selected.".to_string());
-                    }
-                } else {
-                    app.output.push("No package selected.".to_string());
-                }
-            }
-
-            KeyCode::Char('u') => {
-                if let Some(pkg_idx) = app.selected_package.selected() {
-                    if let Some(package) = app.state.filtered_packages.get(pkg_idx) {
-                        if app.show_mode_state.active_show_mode != ShowMode::AllAvailable {
-                            app.command_to_run = Some(vec![
-                                "sudo".to_string(),
-                                "pacman".to_string(),
-                                "-Rns".to_string(),
-                                package.name.clone(),
-                            ]);
-                            return Ok(true);
-                        } else {
-                            app.output
-                                .push("Cannot uninstall from 'All Available' mode.".to_string());
-                        }
-                    } else {
-                        app.output.push("No package selected.".to_string());
-                    }
-                } else {
-                    app.output.push("No package selected.".to_string());
-                }
-            }
-
-            KeyCode::Char('o') => {
-                app.command_to_run = Some(vec![
-                    "sudo".to_string(),
-                    "sh".to_string(),
-                    "-c".to_string(),
-                    "pacman -Rns $(pacman -Qdtq)".to_string(),
-                ]);
-                return Ok(true);
-            }
+            // KeyCode::Char('i') => { ... } // REMOVED
+            // KeyCode::Char('u') => { ... } // REMOVED
+            // KeyCode::Char('o') => { ... } // REMOVED
 
             KeyCode::Char('?') => {
                 app.input_mode = InputMode::Action;
+
+                // --- MODIFIED: Load actions from config ---
+                app.action_state.load_actions_from_config(&app.config);
+                // ---
 
                 app.action_state.input.clear();
                 app.action_state.update_filtered_options(); 
