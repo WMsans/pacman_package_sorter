@@ -42,6 +42,7 @@ impl ActionModalState {
 
         actions.push(Action::new_local("Add Tag", 'a', false));
         actions.push(Action::new_local("Remove Tag", 'd', false));
+        actions.push(Action::new_local("Clear Output", 'c', false));
 
         self.all_actions = actions;
         self.update_filtered_options();
@@ -137,6 +138,12 @@ impl ActionModalState {
                                     app.input_mode = InputMode::Normal;
                                 }
                                 return false; 
+                            }
+                            "Clear Output" => {
+                                app.output.clear();
+                                app.output.info("Output cleared.".to_string());
+                                app.input_mode = InputMode::Normal;
+                                return false;
                             }
                             _ => {
                                 app.input_mode = InputMode::Normal;

@@ -85,6 +85,12 @@ impl KeyEventHandler for NormalState {
                 }
             }
 
+            KeyCode::Char('c') =>{
+                app.output.clear();
+                app.output.info("Output cleared.".to_string());
+                app.input_mode = InputMode::Normal;
+            }
+
             KeyCode::Char('?') => {
                 app.input_mode = InputMode::Action;
 

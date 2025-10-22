@@ -40,6 +40,12 @@ impl OutputLog {
         }
     }
 
+    /// Clears all messages from the log.
+    pub fn clear(&mut self) {
+        self.messages.clear();
+        self.scroll_position = 0;
+    }
+
     /// Sets the visible height of the window, clamping the scroll position.
     pub fn set_window_height(&mut self, height: usize) {
         // Subtract 2 for borders
