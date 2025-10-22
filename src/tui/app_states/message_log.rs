@@ -27,13 +27,52 @@ pub struct AppMessage {
 #[derive(Clone, Debug)]
 pub struct OutputLog {
     pub messages: Vec<AppMessage>,
+    pub scroll_position: usize,
+    window_height: usize,
 }
 
 impl OutputLog {
     pub fn new() -> Self {
         Self {
             messages: Vec::new(),
+            scroll_position: 0,
+            window_height: 1, // Default, will be updated by UI
         }
+    }
+
+    /// Sets the visible height of the window, clamping the scroll position.
+    pub fn set_window_height(&mut self, height: usize) {
+        // Subtract 2 for borders
+        self.window_height = height.saturating_sub(2).max(1);
+        self.clamp_scroll();
+    }
+
+    /// Clamps the scroll position to valid bounds.
+    fn clamp_scroll(&mut self) {
+        let max_scroll = self
+            .messages
+            .len()
+            .saturating_sub(self.window_height);
+        self.scroll_position = self.scroll_position.min(max_scroll);
+    }
+
+    /// Scrolls up by a number of lines.
+    pub fn scroll_up(&mut self, lines: usize) {
+        self.scroll_position = self.scroll_position.saturating_sub(lines);
+    }
+
+    /// Scrolls down by a number of lines.
+    pub fn scroll_down(&mut self, lines: usize) {
+        self.scroll_position = self.scroll_position.saturating_add(lines);
+        self.clamp_scroll();
+    }
+
+    /// Scrolls to the bottom of the log.
+    pub fn scroll_to_bottom(&mut self) {
+        self.scroll_position = self
+            .messages
+            .len()
+            .saturating_sub(self.window_height);
     }
 
     /// Adds a new info message.
@@ -42,6 +81,7 @@ impl OutputLog {
             text: message,
             msg_type: MessageType::Info,
         });
+        self.scroll_to_bottom(); // Auto-scroll
     }
 
     /// Adds a new warning message.
@@ -50,6 +90,7 @@ impl OutputLog {
             text: message,
             msg_type: MessageType::Warning,
         });
+        self.scroll_to_bottom(); // Auto-scroll
     }
 
     /// Adds a new error message.
@@ -58,6 +99,7 @@ impl OutputLog {
             text: message,
             msg_type: MessageType::Error,
         });
+        self.scroll_to_bottom(); // Auto-scroll
     }
 }
 

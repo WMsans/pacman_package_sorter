@@ -34,8 +34,10 @@ impl KeyEventHandler for NormalState {
 
         match key.code {
             KeyCode::Char('q') => return Ok(true),
-            KeyCode::Up | KeyCode::Char('k') => app.select_previous_package(),
-            KeyCode::Down | KeyCode::Char('j') => app.select_next_package(),
+            KeyCode::Char('k') => app.select_previous_package(), 
+            KeyCode::Char('j') => app.select_next_package(),   
+            KeyCode::Up => app.output.scroll_up(1),               
+            KeyCode::Down => app.output.scroll_down(1),             
             KeyCode::Char('s') => {
                 app.input_mode = InputMode::Sorting;
                 app.sort_state.selection.select(Some(0));

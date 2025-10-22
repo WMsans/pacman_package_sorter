@@ -57,9 +57,12 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         // [FIX] This should split horizontal_layout[1], not main_layout[1]
         .split(horizontal_layout[1]);
 
+    // Store the output log's area for mouse event handling
+    app.output_log_area = right_layout[2];
+
     render_package_info(frame, right_layout[0], app);
     render_actions(frame, right_layout[1], app);
-    render_output_window(frame, right_layout[2], app);
+    render_output_window(frame, right_layout[2], app); // MODIFIED
 
     render_search_bar(frame, search_area, app);
 
@@ -186,8 +189,11 @@ fn render_actions(frame: &mut Frame, area: Rect, app: &App) {
     frame.render_widget(paragraph, area);
 }
 
-fn render_output_window(frame: &mut Frame, area: Rect, app: &App) {
-    let block = Block::default().title("Output").borders(Borders::ALL);
+fn render_output_window(frame: &mut Frame, area: Rect, app: &mut App) { 
+    // Update the log's knowledge of its height
+    app.output.set_window_height(area.height as usize);
+
+    let block = Block::default().title("Output (↑/↓)").borders(Borders::ALL); 
 
     let lines: Vec<Line> = app
         .output
@@ -205,7 +211,10 @@ fn render_output_window(frame: &mut Frame, area: Rect, app: &App) {
 
     let text = Text::from(lines);
 
-    let paragraph = Paragraph::new(text).block(block);
+    let paragraph = Paragraph::new(text)
+        .block(block)
+        .scroll((app.output.scroll_position as u16, 0));
+        
     frame.render_widget(paragraph, area);
 }
 

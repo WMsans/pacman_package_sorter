@@ -1,4 +1,4 @@
-use crate::{backend, config, db}; 
+use crate::{backend, config, db};
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
 use ratatui::prelude::*;
@@ -22,8 +22,6 @@ use crate::tui::app_states::{
 use crate::tui::event::handle_events;
 use crate::tui::ui;
 
-// --- Main Application Struct ---
-
 pub struct App {
     pub state: AppState,
     pub selected_package: ListState,
@@ -31,13 +29,12 @@ pub struct App {
     pub output: OutputLog,
     pub action_state: ActionModalState,
     pub command_to_run: Option<Vec<String>>,
-    pub config: config::Config, 
+    pub config: config::Config,
+    pub output_log_area: Rect, 
 
-    // Search
     pub search_input: String,
     pub search_cursor_position: usize,
 
-    // UI states
     pub sort_state: SortState,
     pub filter_state: FilterModalState,
     pub tag_state: TagModalState,
@@ -64,8 +61,8 @@ impl App {
                 cfg
             },
             Err(e) => {
-                log.error(format!("Config Error: {}", e)); 
-                log.warn("Using default config.".to_string()); 
+                log.error(format!("Config Error: {}", e));
+                log.warn("Using default config.".to_string());
                 config::Config::default()
             }
         };
@@ -76,7 +73,8 @@ impl App {
             input_mode: InputMode::Normal,
             output: log,
             command_to_run: None,
-            config, // <-- ADD THIS
+            config,
+            output_log_area: Rect::default(), 
             search_input: String::new(),
             search_cursor_position: 0,
             sort_state,
@@ -91,11 +89,6 @@ impl App {
         }
     }
 
-    /// ADD THIS ENTIRE HELPER FUNCTION
-    ///
-    /// Executes a command action from the config, performing all
-    /// necessary checks.
-    /// Returns `true` if the TUI should quit to run the command.
     pub fn execute_config_action(&mut self, action: &crate::config::Action) -> bool {
         let (command_template, requires_package, show_mode_whitelist, show_mode_blacklist) =
             match &action.action_type {
@@ -110,28 +103,26 @@ impl App {
                     show_mode_whitelist,
                     show_mode_blacklist,
                 ),
-                _ => return false, // Not a command action
+                _ => return false, 
             };
 
-        // Check whitelist
         if !show_mode_whitelist.is_empty() {
             let current_mode_str = self.show_mode_state.active_show_mode.to_string();
             if !show_mode_whitelist.contains(&current_mode_str) {
-                self.output.warn(format!( 
+                self.output.warn(format!(
                     "Action '{}' can only be run in modes: {}",
                     action.name,
                     show_mode_whitelist.join(", ")
                 ));
-                self.input_mode = InputMode::Normal; 
+                self.input_mode = InputMode::Normal;
                 return false;
             }
         }
 
-        // Check blacklist
         if !show_mode_blacklist.is_empty() {
             let current_mode_str = self.show_mode_state.active_show_mode.to_string();
             if show_mode_blacklist.contains(&current_mode_str) {
-                self.output.warn(format!( 
+                self.output.warn(format!(
                     "Action '{}' cannot be run in mode: {}",
                     action.name, current_mode_str
                 ));
@@ -149,7 +140,7 @@ impl App {
             }
 
             if package_name.is_none() {
-                self.output.error(format!( 
+                self.output.error(format!(
                     "Action '{}' requires a selected package.",
                     action.name
                 ));
@@ -163,50 +154,46 @@ impl App {
                 .unwrap_or_default();
 
         self.command_to_run = Some(final_command);
-        true // Quit TUI to run command
+        true 
     }
 
     pub fn run(
         &mut self,
         terminal: &mut Terminal<CrosstermBackend<Stdout>>,
     ) -> std::io::Result<()> {
-        
+
         loop {
-            // On each loop, check if we are still loading
+
             if self.is_loading {
-                // Try to receive data from the channel non-blockingly
+
                 if let Ok(loaded_data) = self.data_receiver.try_recv() {
-                    // If we get data, update the app state
+
                     self.state.packages = loaded_data.packages;
                     self.state.available_packages = loaded_data.available_packages;
                     self.state.all_repos = loaded_data.all_repos;
                     self.state.orphan_package_names = loaded_data.orphan_package_names;
-                    
-                    // Reload tags from DB
+
                     self.reload_tags(); 
-                    
-                    // Update filter and tag states with the new data
+
                     self.filter_state = FilterModalState::new(&self.state.all_tags, &self.state.all_repos);
                     self.tag_state = TagModalState::new(&self.state.all_tags);
 
-                    // We are no longer loading
                     self.is_loading = false;
-                    self.apply_filters(); // Apply initial filters/sort to show the list
+                    self.apply_filters(); 
                 }
             }
 
             terminal.draw(|f| ui::ui(f, self))?;
-            
-            // handle_events is now non-blocking, so this loop will spin
+
             if handle_events(self)? {
-                break; // Exit the loop (and the function)
+                break; 
             }
         }
         Ok(())
     }
 
     pub fn apply_filters(&mut self) {
-        // Decide which base list of packages to use
+
         let source_list = if self.show_mode_state.active_show_mode == ShowMode::AllAvailable {
             &self.state.available_packages
         } else {
@@ -214,7 +201,7 @@ impl App {
         };
 
         self.state.filtered_packages = backend::filter_packages(
-            source_list, // Pass the chosen list
+            source_list, 
             &self.filter_state.tag_filters,
             &self.filter_state.repo_filters,
             self.show_mode_state.active_show_mode,
