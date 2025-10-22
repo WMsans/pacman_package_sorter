@@ -137,7 +137,7 @@ impl KeyEventHandler for TagModalState {
                             };
                             match result {
                                 Ok(msg) => {
-                                    app.output.push(msg);
+                                    app.output.info(msg);
                                     // Find the package in the main list and update its tags
                                     if let Some(pkg_to_update) = app
                                         .state
@@ -157,7 +157,7 @@ impl KeyEventHandler for TagModalState {
                                     app.reload_tags();
                                 }
                                 Err(e) => {
-                                    app.output.push(format!("Error: {}", e));
+                                    app.output.error(format!("Error: {}", e));
                                 }
                             }
                         }

@@ -14,4 +14,8 @@ pub enum AppError {
     InvalidInput(String),
     #[error("Network request failed: {0}")]
     RequestError(#[from] reqwest::Error),
+    #[error("TOML Parse Error: {0}")] 
+    TomlParse(String),
+    #[error("TOML Serialize Error: {0}")] 
+    TomlSerialize(String),
 }

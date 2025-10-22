@@ -1,12 +1,12 @@
 use crate::tui::app::{App};
 use crate::backend::FilterState;
-use crate::tui::app_states::app_state::{FilterFocus, InputMode, TagModalFocus};
-use ratatui::layout::Position;
+use crate::tui::app_states::app_state::{ActionModalFocus, FilterFocus, InputMode, TagModalFocus};
 use ratatui::{
-    layout::{Constraint, Direction, Layout, Margin, Rect},
+    layout::{Constraint, Direction, Layout, Margin, Rect, Position},
     style::{Color, Modifier, Style},
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
     Frame,
+    text::{Span, Text, Line},
 };
 
 pub fn ui(frame: &mut Frame, app: &mut App) {
@@ -57,9 +57,12 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         // [FIX] This should split horizontal_layout[1], not main_layout[1]
         .split(horizontal_layout[1]);
 
+    // Store the output log's area for mouse event handling
+    app.output_log_area = right_layout[2];
+
     render_package_info(frame, right_layout[0], app);
     render_actions(frame, right_layout[1], app);
-    render_output_window(frame, right_layout[2], app);
+    render_output_window(frame, right_layout[2], app); // MODIFIED
 
     render_search_bar(frame, search_area, app);
 
@@ -68,6 +71,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         InputMode::Sorting => render_sort_modal(frame, app),
         InputMode::Filtering => render_filter_modal(frame, app),
         InputMode::Showing => render_show_mode_modal(frame, app),
+        InputMode::Action => render_action_modal(frame, app),
         _ => {}
     }
 }
@@ -79,8 +83,14 @@ fn render_package_list(frame: &mut Frame, area: Rect, app: &mut App) {
         .map(|p| ListItem::new(p.name.clone()))
         .collect();
 
+    let title = if app.is_loading {
+        "Packages (Loading...)"
+    } else {
+        "Packages"
+    };
+
     let list = List::new(items)
-        .block(Block::default().borders(Borders::ALL).title("Packages"))
+        .block(Block::default().borders(Borders::ALL).title(title)) 
         .highlight_style(Style::default().add_modifier(Modifier::BOLD))
         .highlight_symbol("> ");
 
@@ -168,9 +178,9 @@ fn render_sorting(frame: &mut Frame, area: Rect, app: &App) {
 }
 
 fn render_actions(frame: &mut Frame, area: Rect, app: &App) {
-    let block = Block::default().title("Actions").borders(Borders::ALL);
+    let block = Block::default().title("Actions (?)").borders(Borders::ALL);
     let text = match app.input_mode {
-        InputMode::Normal => "Actions:\n- (a)dd tag\n- (d)elete tag",
+        InputMode::Normal => "Actions:\n- (a)dd tag\n- (d)elete tag\n- (?) all actions",
         InputMode::Tagging => "Enter tag to add, then press Enter",
         InputMode::Untagging => "Enter tag to remove, then press Enter",
         _ => "",
@@ -179,10 +189,32 @@ fn render_actions(frame: &mut Frame, area: Rect, app: &App) {
     frame.render_widget(paragraph, area);
 }
 
-fn render_output_window(frame: &mut Frame, area: Rect, app: &App) {
-    let block = Block::default().title("Output").borders(Borders::ALL);
-    let text = app.output.join("\n");
-    let paragraph = Paragraph::new(text).block(block);
+fn render_output_window(frame: &mut Frame, area: Rect, app: &mut App) { 
+    // Update the log's knowledge of its height
+    app.output.set_window_height(area.height as usize);
+
+    let block = Block::default().title("Output (↑/↓)").borders(Borders::ALL); 
+
+    let lines: Vec<Line> = app
+        .output
+        .messages
+        .iter()
+        .map(|msg| {
+
+            let style = msg.msg_type.style();
+
+            let span = Span::styled(msg.text.clone(), style);
+
+            Line::from(span)
+        })
+        .collect();
+
+    let text = Text::from(lines);
+
+    let paragraph = Paragraph::new(text)
+        .block(block)
+        .scroll((app.output.scroll_position as u16, 0));
+        
     frame.render_widget(paragraph, area);
 }
 
@@ -428,4 +460,69 @@ fn render_search_bar(frame: &mut Frame, area: Rect, app: &App) {
             y: area.y + 1,
         });
     }
+}
+fn render_action_modal(frame: &mut Frame, app: &mut App) {
+    let area = centered_rect(60, 50, frame.area());
+    let title = "Actions";
+    let block = Block::default().title(title).borders(Borders::ALL);
+
+    frame.render_widget(Clear, area);
+    frame.render_widget(block, area);
+
+    let modal_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .margin(1)
+        .constraints(
+            [
+                Constraint::Length(3), // Input
+                Constraint::Min(0),    // List
+            ]
+            .as_ref(),
+        )
+        .split(area);
+
+    let input = Paragraph::new(app.action_state.input.as_str())
+        .style(Style::default().fg(Color::Yellow))
+        .block(Block::default().borders(Borders::ALL).title("Search").border_style(match app.action_state.focus {
+                    ActionModalFocus::Input => Style::default().fg(Color::Yellow),
+                    _ => Style::default(),
+                }),);
+    frame.render_widget(input, modal_layout[0]);
+
+    let action_items: Vec<ListItem> = app
+        .action_state
+        .filtered_options
+        .iter()
+        .map(|a| {
+            let name = &a.name;
+            let key = a.key.key;
+            let shift = a.key.shift;
+
+            // Format the hotkey string
+            let hotkey_str = if shift {
+                format!("Shift+{}", key)
+            } else {
+                key.to_string()
+            };
+            
+            // Combine name and hotkey
+            let display_text = format!("{} ({})", name, hotkey_str);
+            ListItem::new(display_text)
+        })
+        .collect();
+
+    let actions_list = List::new(action_items)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Options")
+                .border_style(match app.action_state.focus {
+                    ActionModalFocus::List => Style::default().fg(Color::Yellow),
+                    _ => Style::default(),
+                }),
+        )
+        .highlight_style(Style::default().add_modifier(Modifier::BOLD).bg(Color::DarkGray))
+        .highlight_symbol("> ");
+
+    frame.render_stateful_widget(actions_list, modal_layout[1], &mut app.action_state.selection);
 }
