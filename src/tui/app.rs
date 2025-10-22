@@ -31,6 +31,7 @@ pub struct App {
     pub command_to_run: Option<Vec<String>>,
     pub config: config::Config,
     pub output_log_area: Rect, 
+    pub package_list_area: Rect,
 
     pub search_input: String,
     pub search_cursor_position: usize,
@@ -75,6 +76,7 @@ impl App {
             command_to_run: None,
             config,
             output_log_area: Rect::default(), 
+            package_list_area: Rect::default(),
             search_input: String::new(),
             search_cursor_position: 0,
             sort_state,

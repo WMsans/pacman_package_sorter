@@ -38,7 +38,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
             .as_ref(),
         )
         .split(horizontal_layout[0]); 
-
+    app.package_list_area = left_layout[0];
     render_package_list(frame, left_layout[0], app);
     render_show_mode(frame, left_layout[1], app); 
     render_filters(frame, left_layout[2], app); // Index changed

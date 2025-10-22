@@ -85,13 +85,33 @@ pub fn handle_events(app: &mut App) -> std::io::Result<bool> {
 
                 if let InputMode::Normal = app.input_mode {
 
-                    let area = app.output_log_area;
-                    let is_inside = mouse_event.row >= area.y
-                        && mouse_event.row < area.y + area.height
-                        && mouse_event.column >= area.x
-                        && mouse_event.column < area.x + area.width;
+                    // Check for package list scroll
+                    let pkg_area = app.package_list_area;
+                    let is_inside_pkg_list = mouse_event.row >= pkg_area.y
+                        && mouse_event.row < pkg_area.y + pkg_area.height
+                        && mouse_event.column >= pkg_area.x
+                        && mouse_event.column < pkg_area.x + pkg_area.width;
 
-                    if is_inside {
+                    if is_inside_pkg_list {
+                        match mouse_event.kind {
+                            MouseEventKind::ScrollUp => {
+                                app.select_previous_package();
+                            }
+                            MouseEventKind::ScrollDown => {
+                                app.select_next_package();
+                            }
+                            _ => {}
+                        }
+                    }
+
+                    // Check for output log scroll
+                    let log_area = app.output_log_area;
+                    let is_inside_log = mouse_event.row >= log_area.y
+                        && mouse_event.row < log_area.y + log_area.height
+                        && mouse_event.column >= log_area.x
+                        && mouse_event.column < log_area.x + log_area.width;
+
+                    if is_inside_log {
                         match mouse_event.kind {
                             MouseEventKind::ScrollUp => {
                                 app.output.scroll_up(1);
