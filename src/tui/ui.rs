@@ -1,12 +1,12 @@
 use crate::tui::app::{App};
 use crate::backend::FilterState;
 use crate::tui::app_states::app_state::{ActionModalFocus, FilterFocus, InputMode, TagModalFocus};
-use ratatui::layout::Position;
 use ratatui::{
-    layout::{Constraint, Direction, Layout, Margin, Rect},
+    layout::{Constraint, Direction, Layout, Margin, Rect, Position},
     style::{Color, Modifier, Style},
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
     Frame,
+    text::{Span, Text, Line},
 };
 
 pub fn ui(frame: &mut Frame, app: &mut App) {
@@ -87,7 +87,7 @@ fn render_package_list(frame: &mut Frame, area: Rect, app: &mut App) {
     };
 
     let list = List::new(items)
-        .block(Block::default().borders(Borders::ALL).title(title)) // --- MODIFIED ---
+        .block(Block::default().borders(Borders::ALL).title(title)) 
         .highlight_style(Style::default().add_modifier(Modifier::BOLD))
         .highlight_symbol("> ");
 
@@ -188,7 +188,23 @@ fn render_actions(frame: &mut Frame, area: Rect, app: &App) {
 
 fn render_output_window(frame: &mut Frame, area: Rect, app: &App) {
     let block = Block::default().title("Output").borders(Borders::ALL);
-    let text = app.output.join("\n");
+
+    let lines: Vec<Line> = app
+        .output
+        .messages
+        .iter()
+        .map(|msg| {
+
+            let style = msg.msg_type.style();
+
+            let span = Span::styled(msg.text.clone(), style);
+
+            Line::from(span)
+        })
+        .collect();
+
+    let text = Text::from(lines);
+
     let paragraph = Paragraph::new(text).block(block);
     frame.render_widget(paragraph, area);
 }
@@ -464,7 +480,6 @@ fn render_action_modal(frame: &mut Frame, app: &mut App) {
                 }),);
     frame.render_widget(input, modal_layout[0]);
 
-    // --- MODIFIED: Create display text with hotkey ---
     let action_items: Vec<ListItem> = app
         .action_state
         .filtered_options
@@ -486,7 +501,6 @@ fn render_action_modal(frame: &mut Frame, app: &mut App) {
             ListItem::new(display_text)
         })
         .collect();
-    // ---
 
     let actions_list = List::new(action_items)
         .block(

@@ -11,6 +11,7 @@ use crate::packages::models::ShowMode;
 use crate::tui::app_states::{
     app_state::{AppState, InputMode, LoadedData},
     filter_modal_state::FilterModalState,
+    message_log::OutputLog,
     normal_state::NormalState,
     action_modal_state::ActionModalState,
     search_state::SearchState,
@@ -27,10 +28,10 @@ pub struct App {
     pub state: AppState,
     pub selected_package: ListState,
     pub input_mode: InputMode,
-    pub output: Vec<String>,
+    pub output: OutputLog,
     pub action_state: ActionModalState,
     pub command_to_run: Option<Vec<String>>,
-    pub config: config::Config, // <-- ADD THIS
+    pub config: config::Config, 
 
     // Search
     pub search_input: String,
@@ -56,13 +57,24 @@ impl App {
         let tag_state = TagModalState::new(&state.all_tags);
         let show_mode_state = ShowModeState::new();
         let action_state = ActionModalState::new();
-        let config = config::load_config(); // <-- ADD THIS
+        let mut log = OutputLog::new();
+        let config = match config::load_config() {
+            Ok(cfg) => {
+                log.info("Successfully loaded config.".to_string());
+                cfg
+            },
+            Err(e) => {
+                log.error(format!("Config Error: {}", e)); 
+                log.warn("Using default config.".to_string()); 
+                config::Config::default()
+            }
+        };
 
         App {
             state,
             selected_package: ListState::default(),
             input_mode: InputMode::Normal,
-            output: Vec::new(),
+            output: log,
             command_to_run: None,
             config, // <-- ADD THIS
             search_input: String::new(),
@@ -105,12 +117,12 @@ impl App {
         if !show_mode_whitelist.is_empty() {
             let current_mode_str = self.show_mode_state.active_show_mode.to_string();
             if !show_mode_whitelist.contains(&current_mode_str) {
-                self.output.push(format!(
+                self.output.warn(format!( 
                     "Action '{}' can only be run in modes: {}",
                     action.name,
                     show_mode_whitelist.join(", ")
                 ));
-                self.input_mode = InputMode::Normal; // Ensure modal closes
+                self.input_mode = InputMode::Normal; 
                 return false;
             }
         }
@@ -119,7 +131,7 @@ impl App {
         if !show_mode_blacklist.is_empty() {
             let current_mode_str = self.show_mode_state.active_show_mode.to_string();
             if show_mode_blacklist.contains(&current_mode_str) {
-                self.output.push(format!(
+                self.output.warn(format!( 
                     "Action '{}' cannot be run in mode: {}",
                     action.name, current_mode_str
                 ));
@@ -137,7 +149,7 @@ impl App {
             }
 
             if package_name.is_none() {
-                self.output.push(format!(
+                self.output.error(format!( 
                     "Action '{}' requires a selected package.",
                     action.name
                 ));

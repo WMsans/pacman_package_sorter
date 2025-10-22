@@ -134,43 +134,34 @@ fn get_config_path() -> Result<PathBuf, AppError> {
 }
 
 /// Loads the config from file, or creates and returns a default config.
-pub fn load_config() -> Config {
+pub fn load_config() -> Result<Config, AppError> { // CHANGED: Return type
     let path = match get_config_path() {
         Ok(path) => path,
         Err(e) => {
-            eprintln!("Failed to get config path: {}. Using default config.", e);
-            return Config::default();
+            return Err(e); 
         }
     };
 
     if !path.exists() {
         let default_config = Config::default();
         let toml_string =
-            toml::to_string_pretty(&default_config).expect("Failed to serialize default config");
+            toml::to_string_pretty(&default_config).map_err(|e| AppError::TomlSerialize(e.to_string()))?; // CHANGED: Error wrapping
 
         if let Err(e) = fs::write(&path, toml_string) {
-            eprintln!("Failed to write default config to {:?}: {}", path, e);
+            return Err(AppError::Io(e)); 
         }
-        return default_config;
+        return Ok(default_config); 
     }
 
     match fs::read_to_string(&path) {
         Ok(content) => match toml::from_str(&content) {
-            Ok(config) => config,
+            Ok(config) => Ok(config),
             Err(e) => {
-                eprintln!(
-                    "Failed to parse config file at {:?}: {}. Using default config.",
-                    path, e
-                );
-                Config::default()
+                Err(AppError::TomlParse(e.to_string())) 
             }
         },
         Err(e) => {
-            eprintln!(
-                "Failed to read config file at {:?}: {}. Using default config.",
-                path, e
-            );
-            Config::default()
+            Err(AppError::Io(e)) 
         }
     }
 }

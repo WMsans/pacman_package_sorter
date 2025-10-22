@@ -10,39 +10,24 @@ pub struct NormalState;
 
 impl KeyEventHandler for NormalState {
     fn handle_key_event(&mut self, app: &mut App, key: KeyEvent) -> io::Result<bool> {
-        
-        // --- NEW: Handle dynamic actions from config ---
         let (key_char, shift) = match key.code {
             KeyCode::Char(c) => (c, key.modifiers == KeyModifiers::SHIFT),
-            _ => ('\0', false), // Not a char, not a config hotkey
+            _ => ('\0', false), 
         };
 
         if key_char != '\0' {
-            // Clone to avoid borrow checker issues with `app.execute_config_action`
             for action in app.config.actions.clone() {
                 if action.key.key == key_char && action.key.shift == shift {
-                    // Matched a hotkey!
-                    // Check if it's a Command action
                     if let crate::config::ActionType::Command { .. } = action.action_type {
-                        // app.execute_config_action handles all checks and returns `true`
-                        // if we should quit.
                         return Ok(app.execute_config_action(&action));
                     }
-                    // Local actions (Add/Remove Tag) are not triggered from here.
-                    // The 'a' and 'd' keys are handled below as they are special.
                 }
             }
         }
-        // --- End new action handler ---
 
-        // --- Old handler, with command keys (S, Y, i, u, o) removed ---
-        
-        // This block is now empty, but we'll keep it in case you want to
-        // add other non-configurable shift-modified keys.
         if key.modifiers == KeyModifiers::SHIFT {
             match key.code {
-                // KeyCode::Char('S') => { ... } // REMOVED
-                // KeyCode::Char('Y') => { ... } // REMOVED
+
                 _ => {}
             }
         }
@@ -94,20 +79,14 @@ impl KeyEventHandler for NormalState {
                     app.tag_state.focus = TagModalFocus::Input;
                 } else {
                     app.output
-                        .push("Selected package has no tags to remove.".to_string());
+                        .warn("Selected package has no tags to remove.".to_string());
                 }
             }
-
-            // KeyCode::Char('i') => { ... } // REMOVED
-            // KeyCode::Char('u') => { ... } // REMOVED
-            // KeyCode::Char('o') => { ... } // REMOVED
 
             KeyCode::Char('?') => {
                 app.input_mode = InputMode::Action;
 
-                // --- MODIFIED: Load actions from config ---
                 app.action_state.load_actions_from_config(&app.config);
-                // ---
 
                 app.action_state.input.clear();
                 app.action_state.update_filtered_options(); 

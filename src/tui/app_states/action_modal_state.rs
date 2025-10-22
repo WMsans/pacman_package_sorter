@@ -1,6 +1,6 @@
 use crate::{
-    // packages::models::ShowMode, // No longer needed
-    config::Action, // <-- ADD THIS
+
+    config::Action, 
     tui::{
         app::App,
         app_states::{
@@ -15,45 +15,37 @@ use fuzzy_matcher::FuzzyMatcher;
 use ratatui::widgets::ListState;
 use std::io;
 
-// const ACTIONS: [&str; 7] = [ ... ]; // REMOVED
-
 pub struct ActionModalState {
     pub input: String,
-    // pub options: Vec<String>, // REMOVED
-    // pub filtered_options: Vec<String>, // REMOVED
-    pub all_actions: Vec<Action>, // <-- ADD THIS
-    pub filtered_options: Vec<Action>, // <-- ADD THIS
+
+    pub all_actions: Vec<Action>, 
+    pub filtered_options: Vec<Action>, 
     pub selection: ListState,
     pub focus: ActionModalFocus,
 }
 
 impl ActionModalState {
     pub fn new() -> Self {
-        // let options: Vec<String> = ACTIONS.iter().map(|s| s.to_string()).collect(); // REMOVED
+
         Self {
             input: String::new(),
-            // filtered_options: options.clone(), // REMOVED
-            // options, // REMOVED
-            all_actions: Vec::new(), // <-- ADD THIS
-            filtered_options: Vec::new(), // <-- ADD THIS
+
+            all_actions: Vec::new(), 
+            filtered_options: Vec::new(), 
             selection: ListState::default(),
             focus: ActionModalFocus::Input,
         }
     }
 
-    /// ADD THIS FUNCTION
-    /// Populates the action list from the config
     pub fn load_actions_from_config(&mut self, config: &crate::config::Config) {
         let mut actions = config.actions.clone();
-        
-        // Add internal, non-configurable actions
+
         actions.push(Action::new_local("Add Tag", 'a', false));
         actions.push(Action::new_local("Remove Tag", 'd', false));
-        
+
         self.all_actions = actions;
         self.update_filtered_options();
     }
-
 
     pub fn update_filtered_options(&mut self) {
         let matcher = SkimMatcherV2::default();
@@ -104,13 +96,12 @@ impl ActionModalState {
         self.selection.select(Some(i));
     }
 
-    /// REWRITE THIS FUNCTION
     fn on_enter(&mut self, app: &mut App) -> bool {
         if let Some(selected_index) = self.selection.selected() {
-            // Clone to avoid borrow issues
+
             if let Some(action) = self.filtered_options.get(selected_index).cloned() {
                 match &action.action_type {
-                    // --- Handle Local (internal) actions ---
+
                     crate::config::ActionType::Local => {
                         match action.name.as_str() {
                             "Add Tag" => {
@@ -119,7 +110,7 @@ impl ActionModalState {
                                 app.tag_state.selection.select(Some(0));
                                 app.tag_state.input.clear();
                                 app.tag_state.focus = TagModalFocus::Input;
-                                return false; // Don't quit TUI
+                                return false; 
                             }
                             "Remove Tag" => {
                                 let package_tags =
@@ -140,12 +131,12 @@ impl ActionModalState {
                                     app.tag_state.input.clear();
                                     app.tag_state.focus = TagModalFocus::Input;
                                 } else {
-                                    app.output.push(
+                                    app.output.warn(
                                         "Selected package has no tags to remove.".to_string(),
                                     );
                                     app.input_mode = InputMode::Normal;
                                 }
-                                return false; // Don't quit TUI
+                                return false; 
                             }
                             _ => {
                                 app.input_mode = InputMode::Normal;
@@ -153,10 +144,9 @@ impl ActionModalState {
                             }
                         }
                     }
-                    // --- Handle Command actions ---
+
                     crate::config::ActionType::Command { .. } => {
-                        // Use the new helper function. It will handle all checks
-                        // and return true if we should quit.
+
                         return app.execute_config_action(&action);
                     }
                 }
