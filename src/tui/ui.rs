@@ -84,9 +84,15 @@ fn render_package_list(frame: &mut Frame, area: Rect, app: &mut App) {
         .collect();
 
     let title = if app.is_loading {
-        "Packages (Loading...)"
+        "Packages (Loading...)".to_string() 
     } else {
-        "Packages"
+        let total = app.state.filtered_packages.len();
+        let current = if total > 0 {
+            app.selected_package.selected().map_or(0, |i| i + 1) // 1-indexed
+        } else {
+            0
+        };
+        format!("Packages ({}/{})", current, total) 
     };
 
     let list = List::new(items)
