@@ -195,20 +195,34 @@ impl App {
     }
 
     pub fn apply_filters(&mut self) {
-
-        let source_list = if self.show_mode_state.active_show_mode == ShowMode::AllAvailable {
-            &self.state.available_packages
+        if let ShowMode::DependencyOf(pkg_name) = &self.show_mode_state.active_show_mode {
+            if let Some(package) = self.state.packages.iter().find(|p| &p.name == pkg_name) {
+                let dependency_names = &package.depends_on;
+                self.state.filtered_packages = self
+                    .state
+                    .packages
+                    .iter()
+                    .filter(|p| dependency_names.contains(&p.name))
+                    .cloned()
+                    .collect();
+            } else {
+                self.state.filtered_packages = Vec::new();
+            }
         } else {
-            &self.state.packages
-        };
+            let source_list = if self.show_mode_state.active_show_mode == ShowMode::AllAvailable {
+                &self.state.available_packages
+            } else {
+                &self.state.packages
+            };
 
-        self.state.filtered_packages = backend::filter_packages(
-            source_list, 
-            &self.filter_state.tag_filters,
-            &self.filter_state.repo_filters,
-            self.show_mode_state.active_show_mode,
-            &self.state.orphan_package_names,
-        );
+            self.state.filtered_packages = backend::filter_packages(
+                source_list,
+                &self.filter_state.tag_filters,
+                &self.filter_state.repo_filters,
+                self.show_mode_state.active_show_mode.clone(),
+                &self.state.orphan_package_names,
+            );
+        }
 
         if !self.search_input.is_empty() {
             let matcher = SkimMatcherV2::default();

@@ -24,7 +24,8 @@ impl ShowModeState {
                 ShowMode::ExplicitlyInstalled,
                 ShowMode::Dependencies,
                 ShowMode::Orphans,
-                ShowMode::AllAvailable, 
+                ShowMode::AllAvailable,
+                ShowMode::DependencyOf("".to_string()),
             ],
             selection: ListState::default(),
             active_show_mode: ShowMode::AllInstalled,
@@ -61,7 +62,11 @@ impl ShowModeState {
 
     /// Sets the selection to the currently active show mode
     pub fn select_active(&mut self) {
-        if let Some(index) = self.options.iter().position(|&s| s == self.active_show_mode) {
+        let position = self.options.iter().position(|s| {
+            std::mem::discriminant(s) == std::mem::discriminant(&self.active_show_mode)
+        });
+
+        if let Some(index) = position {
             self.selection.select(Some(index));
         } else {
             self.selection.select(Some(0));
@@ -83,7 +88,22 @@ impl KeyEventHandler for ShowModeState {
             KeyCode::Enter => {
                 if let Some(selected) = self.selection.selected() {
                     if let Some(show_mode) = self.options.get(selected) {
-                        self.active_show_mode = *show_mode;
+                        match show_mode {
+                            ShowMode::DependencyOf(_) => {
+                                if let Some(pkg_idx) = app.selected_package.selected() {
+                                    if let Some(pkg) = app.state.filtered_packages.get(pkg_idx) {
+                                        self.active_show_mode =
+                                            ShowMode::DependencyOf(pkg.name.clone());
+                                    }
+                                } else {
+                                    app.output
+                                        .warn("No package selected for this action.".to_string());
+                                }
+                            }
+                            _ => {
+                                self.active_show_mode = show_mode.clone();
+                            }
+                        }
                     }
                 }
                 app.input_mode = InputMode::Normal;

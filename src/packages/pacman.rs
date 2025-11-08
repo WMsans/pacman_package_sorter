@@ -59,6 +59,21 @@ pub async fn get_all_packages() -> Result<Vec<Package>, AppError> {
         }
     }
 
+    // Populate `required_by` field for each package
+    let package_deps: HashMap<String, Vec<String>> = packages
+        .iter()
+        .map(|p| (p.name.clone(), p.depends_on.clone()))
+        .collect();
+
+    for pkg in &mut packages {
+        for (other_pkg_name, deps) in &package_deps {
+            if deps.contains(&pkg.name) {
+                pkg.required_by.push(other_pkg_name.clone());
+            }
+        }
+        pkg.required_by.sort();
+    }
+
     Ok(packages)
 }
 
@@ -102,6 +117,8 @@ pub fn get_all_available_packages() -> Result<Vec<Package>, AppError> {
                 tags: Vec::new(),  // Not applicable
                 popularity: None,  // Not fetched for this view
                 num_votes: None,
+                depends_on: Vec::new(),
+                required_by: Vec::new(),
             };
             packages.push(pkg);
         }
@@ -173,9 +190,38 @@ fn parse_package_block(
     repo_map: &HashMap<String, String>,
 ) -> Result<Package, AppError> {
     let mut fields = std::collections::HashMap::new();
+    let mut depends_on = Vec::new();
+    let mut in_depends_block = false;
+
     for line in block.lines() {
+        if in_depends_block && line.starts_with(' ') {
+            // This is a continuation of the Depends On list
+            let deps = line.trim().split_whitespace();
+            for dep in deps {
+                // Strip version constraints
+                let dep_name = dep.split(&['<', '>', '=', '!'][..]).next().unwrap_or(dep);
+                depends_on.push(dep_name.to_string());
+            }
+            continue;
+        } else {
+            in_depends_block = false;
+        }
+
         if let Some((key, value)) = line.split_once(" : ") {
-            fields.insert(key.trim(), value.trim());
+            let key = key.trim();
+            let value = value.trim();
+            if key == "Depends On" {
+                in_depends_block = true;
+                if value != "None" {
+                    let deps = value.split_whitespace();
+                    for dep in deps {
+                        let dep_name = dep.split(&['<', '>', '=', '!'][..]).next().unwrap_or(dep);
+                        depends_on.push(dep_name.to_string());
+                    }
+                }
+            } else {
+                fields.insert(key, value);
+            }
         }
     }
 
@@ -226,6 +272,8 @@ fn parse_package_block(
         tags: tags_db.get(&name).cloned().unwrap_or_default(),
         popularity: None,
         num_votes: None,
+        depends_on,
+        required_by: Vec::new(), // Will be populated later
     };
     Ok(package)
 }

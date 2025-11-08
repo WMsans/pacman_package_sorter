@@ -18,6 +18,10 @@ pub struct Package {
     pub tags: Vec<String>,
     pub popularity: Option<f64>,
     pub num_votes: Option<u32>,
+    #[serde(default)]
+    pub depends_on: Vec<String>,
+    #[serde(default)]
+    pub required_by: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -77,13 +81,14 @@ impl FromStr for SortKey {
         }
     }
 }
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ShowMode {
     AllInstalled,
     ExplicitlyInstalled,
     Dependencies,
     Orphans,
-    AllAvailable, 
+    AllAvailable,
+    DependencyOf(String),
 }
 
 impl fmt::Display for ShowMode {
@@ -93,7 +98,8 @@ impl fmt::Display for ShowMode {
             ShowMode::ExplicitlyInstalled => write!(f, "Explicitly Installed"),
             ShowMode::Dependencies => write!(f, "Dependencies"),
             ShowMode::Orphans => write!(f, "Orphans"),
-            ShowMode::AllAvailable => write!(f, "All Available"), // --- ADDED ---
+            ShowMode::AllAvailable => write!(f, "All Available"),
+            ShowMode::DependencyOf(pkg) => write!(f, "Dependency of {}", pkg),
         }
     }
 }

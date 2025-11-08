@@ -1,6 +1,6 @@
 use crate::{
-
-    config::Action, 
+    config::Action,
+    packages::models::ShowMode,
     tui::{
         app::App,
         app_states::{
@@ -18,20 +18,19 @@ use std::io;
 pub struct ActionModalState {
     pub input: String,
 
-    pub all_actions: Vec<Action>, 
-    pub filtered_options: Vec<Action>, 
+    pub all_actions: Vec<Action>,
+    pub filtered_options: Vec<Action>,
     pub selection: ListState,
     pub focus: ActionModalFocus,
 }
 
 impl ActionModalState {
     pub fn new() -> Self {
-
         Self {
             input: String::new(),
 
-            all_actions: Vec::new(), 
-            filtered_options: Vec::new(), 
+            all_actions: Vec::new(),
+            filtered_options: Vec::new(),
             selection: ListState::default(),
             focus: ActionModalFocus::Input,
         }
@@ -42,6 +41,11 @@ impl ActionModalState {
 
         actions.push(Action::new_local("Add Tag", 'a', false));
         actions.push(Action::new_local("Remove Tag", 'd', false));
+        actions.push(Action::new_local(
+            "Show 'dependency of' packages",
+            'D',
+            true,
+        ));
         actions.push(Action::new_local("Clear Output", 'c', false));
 
         self.all_actions = actions;
@@ -99,10 +103,8 @@ impl ActionModalState {
 
     fn on_enter(&mut self, app: &mut App) -> bool {
         if let Some(selected_index) = self.selection.selected() {
-
             if let Some(action) = self.filtered_options.get(selected_index).cloned() {
                 match &action.action_type {
-
                     crate::config::ActionType::Local => {
                         match action.name.as_str() {
                             "Add Tag" => {
@@ -111,7 +113,7 @@ impl ActionModalState {
                                 app.tag_state.selection.select(Some(0));
                                 app.tag_state.input.clear();
                                 app.tag_state.focus = TagModalFocus::Input;
-                                return false; 
+                                return false;
                             }
                             "Remove Tag" => {
                                 let package_tags =
@@ -137,7 +139,20 @@ impl ActionModalState {
                                     );
                                     app.input_mode = InputMode::Normal;
                                 }
-                                return false; 
+                                return false;
+                            }
+                            "Show 'dependency of' packages" => {
+                                if let Some(pkg_idx) = app.selected_package.selected() {
+                                    if let Some(pkg) = app.state.filtered_packages.get(pkg_idx) {
+                                        app.show_mode_state.active_show_mode =
+                                            ShowMode::DependencyOf(pkg.name.clone());
+                                    }
+                                } else {
+                                    app.output
+                                        .warn("No package selected for this action.".to_string());
+                                }
+                                app.input_mode = InputMode::Normal;
+                                return false;
                             }
                             "Clear Output" => {
                                 app.output.clear();
@@ -153,7 +168,6 @@ impl ActionModalState {
                     }
 
                     crate::config::ActionType::Command { .. } => {
-
                         return app.execute_config_action(&action);
                     }
                 }
@@ -174,10 +188,8 @@ impl KeyEventHandler for ActionModalState {
     fn handle_key_event(&mut self, app: &mut App, key: KeyEvent) -> io::Result<bool> {
         match self.focus {
             ActionModalFocus::Input => {
-
                 if key.modifiers == KeyModifiers::CONTROL {
                     match key.code {
-
                         KeyCode::Char('w') | KeyCode::Char('h') => {
                             delete_word_backward(&mut self.input);
                             self.update_filtered_options();
@@ -201,15 +213,13 @@ impl KeyEventHandler for ActionModalState {
                         self.selection.select(Some(0));
                     }
                     KeyCode::Enter => {
-
                         if self.filtered_options.len() == 1 {
                             self.selection.select(Some(0));
 
                             if self.on_enter(app) {
-                                return Ok(true); 
+                                return Ok(true);
                             }
                         } else {
-
                             self.focus = ActionModalFocus::List;
                             self.selection.select(Some(0));
                         }
@@ -227,9 +237,8 @@ impl KeyEventHandler for ActionModalState {
                     self.focus = ActionModalFocus::Input;
                 }
                 KeyCode::Enter => {
-
                     if self.on_enter(app) {
-                        return Ok(true); 
+                        return Ok(true);
                     }
                 }
                 KeyCode::Esc | KeyCode::Char('q') => {
@@ -250,9 +259,7 @@ fn delete_word_backward(text: &mut String) {
 
     let trimmed_len = text.trim_end().len();
 
-    let new_len = text[..trimmed_len]
-        .rfind(' ')
-        .map_or(0, |i| i + 1); 
+    let new_len = text[..trimmed_len].rfind(' ').map_or(0, |i| i + 1);
 
     text.truncate(new_len);
 }

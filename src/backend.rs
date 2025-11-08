@@ -73,6 +73,7 @@ pub fn filter_packages(
             ShowMode::Dependencies => !p.is_explicit,
             ShowMode::Orphans => orphan_names.contains(&p.name),
             ShowMode::AllAvailable => true,
+            ShowMode::DependencyOf(_) => true,
         })
         .cloned()
         .collect()
