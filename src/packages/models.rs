@@ -89,6 +89,7 @@ pub enum ShowMode {
     Orphans,
     AllAvailable,
     DependencyOf(String),
+    RequiredBy(String),
 }
 
 impl fmt::Display for ShowMode {
@@ -100,6 +101,7 @@ impl fmt::Display for ShowMode {
             ShowMode::Orphans => write!(f, "Orphans"),
             ShowMode::AllAvailable => write!(f, "All Available"),
             ShowMode::DependencyOf(pkg) => write!(f, "Dependency of {}", pkg),
+            ShowMode::RequiredBy(pkg) => write!(f, "Required by {}", pkg),
         }
     }
 }

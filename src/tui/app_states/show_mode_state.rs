@@ -26,6 +26,7 @@ impl ShowModeState {
                 ShowMode::Orphans,
                 ShowMode::AllAvailable,
                 ShowMode::DependencyOf("".to_string()),
+                ShowMode::RequiredBy("".to_string()),
             ],
             selection: ListState::default(),
             active_show_mode: ShowMode::AllInstalled,
@@ -94,6 +95,17 @@ impl KeyEventHandler for ShowModeState {
                                     if let Some(pkg) = app.state.filtered_packages.get(pkg_idx) {
                                         self.active_show_mode =
                                             ShowMode::DependencyOf(pkg.name.clone());
+                                    }
+                                } else {
+                                    app.output
+                                        .warn("No package selected for this action.".to_string());
+                                }
+                            }
+                            ShowMode::RequiredBy(_) => {
+                                if let Some(pkg_idx) = app.selected_package.selected() {
+                                    if let Some(pkg) = app.state.filtered_packages.get(pkg_idx) {
+                                        self.active_show_mode =
+                                            ShowMode::RequiredBy(pkg.name.clone());
                                     }
                                 } else {
                                     app.output

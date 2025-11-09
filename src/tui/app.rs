@@ -208,6 +208,19 @@ impl App {
             } else {
                 self.state.filtered_packages = Vec::new();
             }
+        } else if let ShowMode::RequiredBy(pkg_name) = &self.show_mode_state.active_show_mode {
+            if let Some(package) = self.state.packages.iter().find(|p| &p.name == pkg_name) {
+                let required_by_names = &package.required_by;
+                self.state.filtered_packages = self
+                    .state
+                    .packages
+                    .iter()
+                    .filter(|p| required_by_names.contains(&p.name))
+                    .cloned()
+                    .collect();
+            } else {
+                self.state.filtered_packages = Vec::new();
+            }
         } else {
             let source_list = if self.show_mode_state.active_show_mode == ShowMode::AllAvailable {
                 &self.state.available_packages
