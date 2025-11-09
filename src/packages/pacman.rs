@@ -59,21 +59,6 @@ pub async fn get_all_packages() -> Result<Vec<Package>, AppError> {
         }
     }
 
-    // Populate `required_by` field for each package
-    let package_deps: HashMap<String, Vec<String>> = packages
-        .iter()
-        .map(|p| (p.name.clone(), p.depends_on.clone()))
-        .collect();
-
-    for pkg in &mut packages {
-        for (other_pkg_name, deps) in &package_deps {
-            if deps.contains(&pkg.name) {
-                pkg.required_by.push(other_pkg_name.clone());
-            }
-        }
-        pkg.required_by.sort();
-    }
-
     Ok(packages)
 }
 
@@ -191,7 +176,9 @@ fn parse_package_block(
 ) -> Result<Package, AppError> {
     let mut fields = std::collections::HashMap::new();
     let mut depends_on = Vec::new();
+    let mut required_by = Vec::new();
     let mut in_depends_block = false;
+    let mut in_required_by_block = false;
 
     for line in block.lines() {
         if in_depends_block && line.starts_with(' ') {
@@ -207,6 +194,18 @@ fn parse_package_block(
             in_depends_block = false;
         }
 
+        if in_required_by_block && line.starts_with(' ') {
+            // This is a continuation of the Required By list
+            let reqs = line.trim().split_whitespace();
+            for req in reqs {
+                // No version constraints on Required By
+                required_by.push(req.to_string());
+            }
+            continue;
+        } else {
+            in_required_by_block = false;
+        }
+
         if let Some((key, value)) = line.split_once(" : ") {
             let key = key.trim();
             let value = value.trim();
@@ -217,6 +216,15 @@ fn parse_package_block(
                     for dep in deps {
                         let dep_name = dep.split(&['<', '>', '=', '!'][..]).next().unwrap_or(dep);
                         depends_on.push(dep_name.to_string());
+                    }
+                }
+            } else if key == "Required By" { // <-- CHANGED to "else if"
+                in_required_by_block = true;
+                in_depends_block = false; // Ensure one block at a time
+                if value != "None" {
+                    let reqs = value.split_whitespace();
+                    for req in reqs {
+                        required_by.push(req.to_string());
                     }
                 }
             } else {
@@ -273,7 +281,7 @@ fn parse_package_block(
         popularity: None,
         num_votes: None,
         depends_on,
-        required_by: Vec::new(), // Will be populated later
+        required_by: required_by, // Will be populated later
     };
     Ok(package)
 }
